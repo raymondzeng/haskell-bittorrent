@@ -1,5 +1,5 @@
 import qualified Data.Attoparsec.ByteString.Char8 as P
-import Data.ByteString.Char8 (pack, unpack)
+import qualified Data.ByteString.Char8 as B
 import System.Environment
 import Control.Applicative ((<$>), (<*>), (<|>), (<*))
 import Control.Monad (liftM)
@@ -30,7 +30,7 @@ parseString = do
             n <- P.decimal -- length of string
             P.char ':'
             s <- P.take n 
-            return . String . unpack $ s               
+            return . String . B.unpack $ s               
 
 -- TODO: if failure to match expr inside list or dict, infinite recursion
 
@@ -79,4 +79,4 @@ parseMeta = P.manyTill (parseExpr) (P.endOfInput)
 main :: IO ()
 main = do
        args <- getArgs
-       print $ P.parseOnly parseMeta (pack (args !! 0))
+       B.readFile (args !! 0) >>= print . P.parseOnly parseMeta 
