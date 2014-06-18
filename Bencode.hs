@@ -30,43 +30,38 @@ parseString = do
             n <- P.decimal -- length of string
             P.char ':'
             s <- P.take n 
-            return . String . unpack $ s     
-       
--- -- does not work
--- parseList :: P.Parser BenValue
--- parseList = P.char 'l' >> pListInternal
+            return . String . unpack $ s               
 
--- pListInternal :: P.Parser BenValue
--- pListInternal = do 
---               c <- P.peekChar
---               case c of
---                    Just 'e' -> do
---                                P.char 'e'
---                                return (List [])
---                    _        -> bCons <$> parseExpr <*> parseList 
---               where bCons e (List l) = List (e:l)
-          
--- TODO: handle empty case
+-- TODO: if failure to match expr inside list or dict, infinite recursion
 
+-- TODO: handle empty case, "le"
+parseList :: P.Parser BenValue
 parseList = do 
           P.char 'l'
-          l <- pListInternal
+          l <- P.many' parseExpr
           P.char 'e'
-          return l
+          return $ List l
 
-pListInternal = liftM List $ listWrap <$> parseExpr
-           where listWrap x = [x]
-
+-- TODO: empty case "de"
+-- | Parses a dictionary delimited by d and e, d<key_value pairs>e
+-- | kv pairs are not seperated by anything
+-- | all keys are BenValue Strings
+-- | values can be any BenValue
+parseDict :: P.Parser BenValue
 parseDict = do
           P.char 'd'
           d <- pDictInternal
           P.char 'e'
           return d
 
+-- | Parses the internals of the dictionary -- everything between d and e
+pDictInternal :: P.Parser BenValue
 pDictInternal = do
               entries <- P.many' pDictEntry
               return $ Dict entries          
 
+-- | Parses a single dict entry, or key-value pair
+pDictEntry :: P.Parser (String, BenValue)
 pDictEntry = do
            (String key) <- parseString
            val <- parseExpr
@@ -82,11 +77,12 @@ parseUnknown = do
              where isAlphaNum x = (P.isAlpha_ascii x || P.isDigit x)      
 
 -- | Parses any one of the possible BenValues
+parseExpr :: P.Parser BenValue
 parseExpr = parseInt
           <|> parseString
           <|> parseList          
           <|> parseDict
-          <|> parseUnknown
+        --  <|> parseUnknown
 
 -- | Parses an entire string (of metadata) and produces a [BenValue]
 parseMeta :: P.Parser Metadata
