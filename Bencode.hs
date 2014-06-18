@@ -34,7 +34,6 @@ parseString = do
 
 -- TODO: if failure to match expr inside list or dict, infinite recursion
 
--- TODO: handle empty case, "le"
 parseList :: P.Parser BenValue
 parseList = do 
           P.char 'l'
@@ -42,7 +41,6 @@ parseList = do
           P.char 'e'
           return $ List l
 
--- TODO: empty case "de"
 -- | Parses a dictionary delimited by d and e, d<key_value pairs>e
 -- | kv pairs are not seperated by anything
 -- | all keys are BenValue Strings
@@ -66,23 +64,13 @@ pDictEntry = do
            (String key) <- parseString
            val <- parseExpr
            return $ (key, val)
-
--- | When no other parser succeeds, the rest of the un-consumed input will
--- | be bundled into an Unknown value as a String
---TODO: should takeWhile not endofinput. right now is just alphanumeric
-parseUnknown :: P.Parser BenValue
-parseUnknown = do
-             s <- P.takeWhile (isAlphaNum)
-             return (Unknown $ unpack s)
-             where isAlphaNum x = (P.isAlpha_ascii x || P.isDigit x)      
-
+      
 -- | Parses any one of the possible BenValues
 parseExpr :: P.Parser BenValue
 parseExpr = parseInt
           <|> parseString
           <|> parseList          
           <|> parseDict
-        --  <|> parseUnknown
 
 -- | Parses an entire string (of metadata) and produces a [BenValue]
 parseMeta :: P.Parser Metadata
