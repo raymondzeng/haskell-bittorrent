@@ -1,5 +1,6 @@
 import qualified Data.Attoparsec.ByteString.Char8 as P
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import System.Environment
 import Control.Applicative ((<$>), (<*>), (<|>), (<*))
 import Control.Monad (liftM)
@@ -79,4 +80,6 @@ parseMeta = P.manyTill (parseExpr) (P.endOfInput)
 main :: IO ()
 main = do
        args <- getArgs
-       B.readFile (args !! 0) >>= print . P.parseOnly parseMeta 
+       B.readFile (args !! 0) >>= print . P.parseOnly parseMeta
+     --  B.readFile (args !! 0) >>= getM . P.parseOnly parseMeta
+     --  where getM (Right m) = B.putStr $ B8.pack $ show m
