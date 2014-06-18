@@ -1,13 +1,13 @@
 import qualified Data.Attoparsec.ByteString.Char8 as P
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString as B
 import System.Environment
 import Control.Applicative ((<$>), (<*>), (<|>), (<*))
 import Control.Monad (liftM)
 
-data BenValue = String String
+data BenValue = ByteString B.ByteString
               | Integer Integer
               | List [BenValue]
-              | Dict [(String, BenValue)]
+              | Dict [(B.ByteString, BenValue)]
               | Unknown String
               deriving (Eq, Show)
 
@@ -30,7 +30,7 @@ parseString = do
             n <- P.decimal -- length of string
             P.char ':'
             s <- P.take n 
-            return . String . B.unpack $ s               
+            return . ByteString $ s               
 
 -- TODO: if failure to match expr inside list or dict, infinite recursion
 
@@ -59,9 +59,9 @@ pDictInternal = do
               return $ Dict entries          
 
 -- | Parses a single dict entry, or key-value pair
-pDictEntry :: P.Parser (String, BenValue)
+pDictEntry :: P.Parser (B.ByteString, BenValue)
 pDictEntry = do
-           (String key) <- parseString
+           (ByteString key) <- parseString
            val <- parseExpr
            return $ (key, val)
       
