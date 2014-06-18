@@ -2,6 +2,7 @@ import qualified Data.Attoparsec.ByteString.Char8 as P
 import Data.ByteString.Char8 (pack, unpack)
 import System.Environment
 import Control.Applicative ((<$>), (<*>), (<|>), (<*))
+import Control.Monad (liftM)
 
 data BenValue = String String
               | Integer Integer
@@ -31,33 +32,45 @@ parseString = do
             s <- P.take n 
             return . String . unpack $ s     
        
--- does not work
-parseList :: P.Parser BenValue
-parseList = P.char 'l' >> pListInternal
+-- -- does not work
+-- parseList :: P.Parser BenValue
+-- parseList = P.char 'l' >> pListInternal
 
-pListInternal :: P.Parser BenValue
-pListInternal = do 
-              c <- P.peekChar
-              case c of
-                   Just 'e' -> do
-                               P.char 'e'
-                               return (List [])
-                   _        -> bCons <$> parseExpr <*> parseList 
-              where bCons e (List l) = List (e:l)
+-- pListInternal :: P.Parser BenValue
+-- pListInternal = do 
+--               c <- P.peekChar
+--               case c of
+--                    Just 'e' -> do
+--                                P.char 'e'
+--                                return (List [])
+--                    _        -> bCons <$> parseExpr <*> parseList 
+--               where bCons e (List l) = List (e:l)
           
--- also doesnt work
-parseDict :: P.Parser BenValue
-parseDict = P.char 'd' >> pDictInternal
+-- TODO: handle empty case
 
-pDictInternal :: P.Parser BenValue
+parseList = do 
+          P.char 'l'
+          l <- pListInternal
+          P.char 'e'
+          return l
+
+pListInternal = liftM List $ listWrap <$> parseExpr
+           where listWrap x = [x]
+
+parseDict = do
+          P.char 'd'
+          d <- pDictInternal
+          P.char 'e'
+          return d
+
 pDictInternal = do
-              c <- P.peekChar
-              case c of
-                   Just 'e' -> do
-                               P.char 'e'
-                               return (Dict [])
-                   _        -> bCons <$> parseString <*> parseExpr <*> parseDict
-              where bCons (String s) bv (Dict d) = Dict $ (s, bv) : d
+              entries <- P.many' pDictEntry
+              return $ Dict entries          
+
+pDictEntry = do
+           (String key) <- parseString
+           val <- parseExpr
+           return $ (key, val)
 
 -- | When no other parser succeeds, the rest of the un-consumed input will
 -- | be bundled into an Unknown value as a String
@@ -71,7 +84,7 @@ parseUnknown = do
 -- | Parses any one of the possible BenValues
 parseExpr = parseInt
           <|> parseString
-          <|> parseList           
+          <|> parseList          
           <|> parseDict
           <|> parseUnknown
 
