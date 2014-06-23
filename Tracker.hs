@@ -38,7 +38,7 @@ peerIdHash :: String
 peerIdHash = B8.unpack . hash . B8.pack $ ['a'..'Z']
 
 port :: String
-port = "ABCD"
+port = show 6881
 
 uploaded :: String
 uploaded = show 0
@@ -49,7 +49,7 @@ downloaded = show 0
 toDownload :: MetaInfo -> String
 toDownload m = show 0 --get (BenString "length") m - downloaded
 
--- | 1 for true to allow compact response
+-- | 1 | 0
 compact :: String
 compact = show 1
 
@@ -90,12 +90,15 @@ getPeers m = extract $ get (BenString "peers") m
          where extract (Just (_,(BenString s))) = s
 
 peerList :: MetaInfo -> [(HostName, PortID)]
-peerList m = map singlePeer $ chunksOf 6 word8s
+peerList m = map processPeer $ chunksOf 6 word8s
          where word8s = B.unpack . B8.pack . getPeers $ m
 
 
-singlePeer :: [Word8] -> (HostName, PortID) 
-singlePeer raw = (host, (PortNumber (x*256 + y)))
-           where (ip, port) = splitAt 4 raw
-                 host = intercalate "." $ map show ip
-                 (x:y:[]) = map fromIntegral port
+processPeer :: [Word8] -> (HostName, PortID) 
+processPeer raw = (host, (PortNumber (x*256 + y)))
+            where (ip, port) = splitAt 4 raw
+                  host = intercalate "." $ map show ip
+                  (x:y:[]) = map fromIntegral port
+
+processResponse :: String -> [(HostName, PortID)]
+processResponse s = peerList . parseOne . B8.pack $ s

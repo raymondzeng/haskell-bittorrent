@@ -64,8 +64,8 @@ parseExpr = parseInt
           <|> parseList          
           <|> parseDict
 
-parseOne :: String -> BenValue
-parseOne s = f $ P.parseOnly parseExpr (pack s)
+parseTest :: String -> BenValue
+parseTest s = f $ P.parseOnly parseExpr (pack s)
          where f (Right v) = v
 
 parseAll :: B.ByteString -> [BenValue]
@@ -73,8 +73,8 @@ parseAll s = extract $ P.parseOnly helper s
          where extract (Right x) = x
                helper = P.manyTill parseExpr P.endOfInput
 
-parseMeta :: B.ByteString -> MetaInfo
-parseMeta s = extract $ P.parseOnly parseExpr s
+parseOne :: B.ByteString -> BenValue
+parseOne s = extract $ P.parseOnly parseExpr s
           where extract (Right x) = x
 
 -- ................... Accessors .................
@@ -111,31 +111,31 @@ encodeOne b@(BenDict _) = encodeDict b
 -- ................... Testing .................
 
 parseTests = test [ -- parseInt
-                   parseOne "i2e" ~?= (BenInt 2),
-                   parseOne "i45e" ~?= (BenInt 45),
-                   parseOne "i456456345623454654356354e" ~?= (BenInt 456456345623454654356354),
-                   parseOne "i-9e" ~?= (BenInt (-9)),
-                   parseOne "i-23e" ~?= (BenInt (-23)),
-                   parseOne "i+34e" ~?= (BenInt 34),
+                   parseTest "i2e" ~?= (BenInt 2),
+                   parseTest "i45e" ~?= (BenInt 45),
+                   parseTest "i456456345623454654356354e" ~?= (BenInt 456456345623454654356354),
+                   parseTest "i-9e" ~?= (BenInt (-9)),
+                   parseTest "i-23e" ~?= (BenInt (-23)),
+                   parseTest "i+34e" ~?= (BenInt 34),
                    -- parseString
-                   parseOne "0:" ~?= (BenString ""),
-                   parseOne "1:a" ~?= (BenString "a"),
-                   parseOne "1:1" ~?= (BenString "1"),
-                   parseOne "5:hello" ~?= (BenString "hello"),
-                   parseOne "5:ab34c" ~?= (BenString "ab34c"),
-                   parseOne "5:-$@#!" ~?= (BenString "-$@#!"),
-                   parseOne "3:3:1" ~?= (BenString "3:1"),
-                   parseOne "1:xdiscarded" ~?= (BenString "x"),
+                   parseTest "0:" ~?= (BenString ""),
+                   parseTest "1:a" ~?= (BenString "a"),
+                   parseTest "1:1" ~?= (BenString "1"),
+                   parseTest "5:hello" ~?= (BenString "hello"),
+                   parseTest "5:ab34c" ~?= (BenString "ab34c"),
+                   parseTest "5:-$@#!" ~?= (BenString "-$@#!"),
+                   parseTest "3:3:1" ~?= (BenString "3:1"),
+                   parseTest "1:xdiscarded" ~?= (BenString "x"),
                    -- parse List 
-                   parseOne "le" ~?= (BenList []),
-                   parseOne "llee" ~?= (BenList [BenList []]),
-                   parseOne "llleee" ~?= (BenList [BenList [BenList []]]),
-                   parseOne "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"]), 
-                   parseOne "lli2eee" ~?= (BenList [BenList [BenInt 2]]),
-                   parseOne "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]]),
+                   parseTest "le" ~?= (BenList []),
+                   parseTest "llee" ~?= (BenList [BenList []]),
+                   parseTest "llleee" ~?= (BenList [BenList [BenList []]]),
+                   parseTest "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"]), 
+                   parseTest "lli2eee" ~?= (BenList [BenList [BenInt 2]]),
+                   parseTest "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]]),
                    -- parse dict
-                   parseOne "de" ~?= (BenDict []),
-                   parseOne "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), 
+                   parseTest "de" ~?= (BenDict []),
+                   parseTest "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), 
                                                            (BenString "b", BenString  "y")])]
 
 
