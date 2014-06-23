@@ -7,26 +7,23 @@ import qualified Data.ByteString.Base16 as Base16
 import Crypto.Hash.SHA1 (hash)
 import Bencode hiding (main)
 import Data.Char
+import Data.Word (Word8)
 import Data.List (intercalate)
 import Data.List.Split (chunksOf)
 
+import Network (PortID (..), HostName)
+
+---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)
-getInfo m = get info m
-        where info = BenString "info"
+getInfo m = get (BenString "info") m
 
 getPieces :: MetaInfo -> Maybe (BenValue, BenValue)
-getPieces m = get pieces $ val (getInfo m)
-         where pieces = BenString "pieces"
-               val (Just (_,v)) = v
-
--- getLength m = get length $ val (getInfo m)
---           where length = BenString "piece length"
---                 val (Just (_,v)) = v
+getPieces m = get (BenString "pieces") $ val (getInfo m)
+          where val (Just (_,v)) = v
 
 getAnnounceUrl :: MetaInfo -> String
-getAnnounceUrl m = clean . extract $ get announce m
-               where announce = BenString "announce"
-                     extract (Just (_, v)) = v
+getAnnounceUrl m = clean . extract $ get (BenString "announce") m
+               where extract (Just (_, v)) = v
                      clean (BenString s) = filter (/= '"') s
 
 getInfoHash :: MetaInfo -> B.ByteString
@@ -35,6 +32,8 @@ getInfoHash m = hash . B8.pack $ encoded
                   encoded = encodeOne $ extract info
                   extract (Just (k,v)) = v
 
+
+--- components of the tracker GET request
 peerIdHash :: String
 peerIdHash = B8.unpack . hash . B8.pack $ ['a'..'Z']
 
@@ -83,3 +82,15 @@ trackerGET m = getAnnounceUrl m ++ "?" ++
                       ("event", event)]
               where urlify = intercalate "&" . map paramVal
                     paramVal (p, v) = p ++ "=" ++ v
+
+
+---- tracker response
+getPeers :: MetaInfo -> String
+getPeers m = extract $ get (BenString "peers") m 
+         where extract (Just (_,(BenString s))) = s
+
+singlePeer :: [Word8] -> (HostName, PortID) 
+singlePeer raw = (host, (PortNumber (x*256 + y)))
+           where (ip, port) = splitAt 4 raw
+                 host = intercalate "." $ map show ip
+                 (x:y:[]) = map fromIntegral port
