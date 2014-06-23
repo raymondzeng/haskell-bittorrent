@@ -49,40 +49,39 @@ downloaded = show 0
 toDownload :: MetaInfo -> String
 toDownload m = show 0 --get (BenString "length") m - downloaded
 
--- | 1 | 0
-compact :: String
-compact = show 1
-
 -- | started | stopped | completed
 event :: String
 event = "started"
 
 urlEncode :: B.ByteString -> String
 urlEncode s = concat $ map helper hexs
-    where hexs = chunksOf 2 . B8.unpack $ Base16.encode s
+    where hexs = bsChunksOf 2 $  Base16.encode s
           helper hex
-               | B8.pack hex `elem` allowed = B8.unpack . first $ (Base16.decode (B8.pack hex))
-               | otherwise = '%' : hex           
+               | hex `elem` allowed = B8.unpack . first $ Base16.decode hex
+               | otherwise = '%' : B8.unpack hex           
           first (a,_) = a
 
-allowed = map B8.pack $ chunksOf 2 . B8.unpack $ Base16.encode reserved
+allowed :: [B.ByteString]
+allowed = bsChunksOf 2 $ Base16.encode reserved
         where reserved = B8.pack (['.', '-', '_', '~'] ++ nums ++ letters)
               nums = concat $ map show [0..9]
               letters = ['a'..'z'] ++ ['A'..'Z']
 
-trackerGET :: MetaInfo -> String
-trackerGET m = getAnnounceUrl m ++ "?" ++ 
+bsChunksOf :: Int -> B.ByteString -> [B.ByteString]
+bsChunksOf n bs = map B.pack $ chunksOf n $ B.unpack bs
+
+requestUrl :: MetaInfo -> String
+requestUrl m = getAnnounceUrl m ++ "?" ++ 
               urlify [("info_hash", urlEncode . getInfoHash $ m),
                       ("peer_id", urlEncode . B8.pack $ peerIdHash),
                       ("port", port),
                       ("uploaded", uploaded),
                       ("downloaded", downloaded),
                       ("left", toDownload m),
-                      ("compact", compact),
+                      ("compact", "1"),
                       ("event", event)]
               where urlify = intercalate "&" . map paramVal
                     paramVal (p, v) = p ++ "=" ++ v
-
 
 ---- tracker response
 getPeers :: MetaInfo -> String
