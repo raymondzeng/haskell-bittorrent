@@ -89,6 +89,11 @@ getPeers :: MetaInfo -> String
 getPeers m = extract $ get (BenString "peers") m 
          where extract (Just (_,(BenString s))) = s
 
+peerList :: MetaInfo -> [(HostName, PortID)]
+peerList m = map singlePeer $ chunksOf 6 word8s
+         where word8s = B.unpack . B8.pack . getPeers $ m
+
+
 singlePeer :: [Word8] -> (HostName, PortID) 
 singlePeer raw = (host, (PortNumber (x*256 + y)))
            where (ip, port) = splitAt 4 raw
