@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Bencode where
 
 import qualified Data.Attoparsec.ByteString.Char8 as P
@@ -14,7 +16,7 @@ import Data.List (find)
 -- put a stricter type on the keys of Dict so that they HAVE to be BenString?
 -- Error testing, make sure parsing works on bad data
 
-data BenValue = BenString B.ByteString
+data BenValue = BenString String
               | BenInt Integer
               | BenList [BenValue]
               | BenDict [(Key, BenValue)]
@@ -22,7 +24,7 @@ data BenValue = BenString B.ByteString
 
 type Key = BenValue -- keys for dictionaries must be strings
 
-type Metadata = [BenValue]
+type MetaInfo = BenValue
 
 -- ................... Decoding .................
 
@@ -39,7 +41,7 @@ parseString = do
             n <- P.decimal -- length of string
             P.char ':'
             s <- P.take n 
-            return . BenString $ s            
+            return . BenString $ B8.unpack s            
 
 parseList :: P.Parser BenValue
 parseList = BenList <$> (P.char 'l' *> P.many' parseExpr <* P.char 'e')
@@ -62,10 +64,18 @@ parseExpr = parseInt
           <|> parseList          
           <|> parseDict
 
--- | Parses an entire string (of metadata) and produces a [BenValue]
-parseMeta :: P.Parser Metadata
-parseMeta = P.manyTill (parseExpr) (P.endOfInput)
+parseOne :: String -> BenValue
+parseOne s = f $ P.parseOnly parseExpr (pack s)
+         where f (Right v) = v
 
+parseAll :: B.ByteString -> [BenValue]
+parseAll s = extract $ P.parseOnly helper s
+         where extract (Right x) = x
+               helper = P.manyTill parseExpr P.endOfInput
+
+parseMeta :: B.ByteString -> MetaInfo
+parseMeta s = extract $ P.parseOnly parseExpr s
+          where extract (Right x) = x
 
 -- ................... Accessors .................
 -- | takes a key and a dict and returns the associated benvalue
@@ -76,54 +86,29 @@ get _ _ = Nothing
 getHelper :: Key -> [(Key, BenValue)] -> Maybe (Key, BenValue)
 getHelper k kvs = find (\(s,v) -> s == k) kvs
 
--- | fetches the "pieces" string from the metainfo
-getPieces m = get pieces $ val (getInfo m)
-         where pieces = BenString (pack "pieces")
-               val (Just (_,v)) = v
-
-getInfo m = get info m
-        where info = BenString (pack "info")
-
-
 -- ................... Encoding .................
-encodeString :: BenValue -> B.ByteString
-encodeString (BenString s) = (pack $ show (B8.length s)) 
-                             `B8.append` pack ":"
-                             `B8.append` s
+encodeString :: BenValue -> String
+encodeString (BenString s) = show (length s) ++ ":" ++ s
 
-encodeInt :: BenValue -> B.ByteString
-encodeInt (BenInt i) = pack "i" 
-                       `B8.append` (pack (show i)) 
-                       `B8.append` pack "e"
+encodeInt :: BenValue -> String
+encodeInt (BenInt i) = "i" ++ show i ++ "e"
 
-encodeList :: BenValue -> B.ByteString
-encodeList (BenList l) = pack "l" 
-                         `B8.append` foldl1 B8.append (map encodeOne l) 
-                         `B8.append` pack "e"
+encodeList :: BenValue -> String
+encodeList (BenList l) = "l" ++ foldl1 (++) (map encodeOne l) ++ "e"
 
 -- enforces that keys are strings by only encoding string on them
 -- throws non exchaustive pattern match if key is not string
-encodeDict :: BenValue -> B.ByteString
-encodeDict (BenDict d) = pack "d" 
-                         `B8.append` foldl1 B8.append (map dEntryEncode d) 
-                         `B8.append` pack "e"
-                         where dEntryEncode (k,v) = encodeString k 
-                                                    `B8.append` encodeOne v
+encodeDict :: BenValue -> String
+encodeDict (BenDict d) = "d" ++ foldl1 (++) (map dEntryEncode d) ++ "e"
+                       where dEntryEncode (k,v) = encodeString k ++ encodeOne v
 
-encodeOne :: BenValue -> B.ByteString
+encodeOne :: BenValue -> String
 encodeOne b@(BenString _) = encodeString b
 encodeOne b@(BenInt _) = encodeInt b
 encodeOne b@(BenList _) = encodeList b
 encodeOne b@(BenDict _) = encodeDict b
 
 -- ................... Testing .................
-parseOne :: String -> BenValue
-parseOne s = f $ P.parseOnly parseExpr (pack s)
-         where f (Right v) = v
-
-parseAll :: B.ByteString -> [BenValue]
-parseAll s = extract $ P.parseOnly parseMeta s
-         where extract (Right x) = x
 
 parseTests = test [ -- parseInt
                    parseOne "i2e" ~?= (BenInt 2),
@@ -133,25 +118,25 @@ parseTests = test [ -- parseInt
                    parseOne "i-23e" ~?= (BenInt (-23)),
                    parseOne "i+34e" ~?= (BenInt 34),
                    -- parseString
-                   parseOne "0:" ~?= (BenString (pack "")),
-                   parseOne "1:a" ~?= (BenString (pack "a")),
-                   parseOne "1:1" ~?= (BenString (pack "1")),
-                   parseOne "5:hello" ~?= (BenString (pack "hello")),
-                   parseOne "5:ab34c" ~?= (BenString (pack "ab34c")),
-                   parseOne "5:-$@#!" ~?= (BenString (pack "-$@#!")),
-                   parseOne "3:3:1" ~?= (BenString (pack "3:1")),
-                   parseOne "1:xdiscarded" ~?= (BenString (pack "x")),
+                   parseOne "0:" ~?= (BenString ""),
+                   parseOne "1:a" ~?= (BenString "a"),
+                   parseOne "1:1" ~?= (BenString "1"),
+                   parseOne "5:hello" ~?= (BenString "hello"),
+                   parseOne "5:ab34c" ~?= (BenString "ab34c"),
+                   parseOne "5:-$@#!" ~?= (BenString "-$@#!"),
+                   parseOne "3:3:1" ~?= (BenString "3:1"),
+                   parseOne "1:xdiscarded" ~?= (BenString "x"),
                    -- parse List 
                    parseOne "le" ~?= (BenList []),
                    parseOne "llee" ~?= (BenList [BenList []]),
                    parseOne "llleee" ~?= (BenList [BenList [BenList []]]),
-                   parseOne "li2e3:abce" ~?= (BenList [BenInt 2, BenString (pack "abc")]), 
+                   parseOne "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"]), 
                    parseOne "lli2eee" ~?= (BenList [BenList [BenInt 2]]),
                    parseOne "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]]),
                    -- parse dict
                    parseOne "de" ~?= (BenDict []),
-                   parseOne "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString (pack "a"), BenString (pack "x")), 
-                                                        (BenString (pack "b"), BenString (pack "y"))])]
+                   parseOne "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), 
+                                                           (BenString "b", BenString  "y")])]
 
 
 

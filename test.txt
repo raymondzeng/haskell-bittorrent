@@ -1,0 +1,15 @@
+actual URI:
+http://tracker.mininova.org/announce?info_hash=%85%f3%a7%06C%d7%e4n%968%a8hS%5e%de%c3%2bAU%15&peer_id=-UM1840-%13uB%de%ad%7ff%90%d8Z%8eW&port=61137&uploaded=0&downloaded=48532&left=0&corrupt=0&key=8594B6D6&event=completed&numwant=200&compact=1&no_peer_id=1
+
+
+python generated
+'85f3a70643d7e46e9638a868535edec32b415515'
+
+Base16 encode ihash
+"85f3a70643d7e46e9638a868535edec32b415515"
+
+Tracker.urlEncode
+"%85%f3%a7%06C%d7%e4n%968%a8hS%5e%de%c3%2bAU%15"
+
+Actual
+"%85%f3%a7%06C%d7%e4n%968%a8hS%5e%de%c3%2bAU%15"
