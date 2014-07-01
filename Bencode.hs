@@ -3,6 +3,7 @@
 module Bencode where
 
 import qualified Data.Attoparsec.ByteString.Char8 as P
+import           Data.ByteString                  (ByteString)
 import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Char8            as B8
 import           Data.ByteString.Char8            (pack)
@@ -16,10 +17,10 @@ import           Data.List                        (find)
 -- put a stricter type on the keys of Dict so that they HAVE to be BenString?
 -- Error testing, make sure parsing works on bad data
 
-data BenValue = BenString String
-              | BenInt Integer
-              | BenList [BenValue]
-              | BenDict [(Key, BenValue)]
+data BenValue = BenString   String
+              | BenInt      Integer
+              | BenList     [BenValue]
+              | BenDict     [(Key, BenValue)]
               deriving (Eq, Show)
 
 type Key = BenValue -- keys for dictionaries must be strings
@@ -68,17 +69,16 @@ parseTest :: String -> BenValue
 parseTest s = f $ P.parseOnly parseExpr (pack s)
          where f (Right v) = v
 
-parseAll :: B.ByteString -> [BenValue]
+parseAll :: ByteString -> [BenValue]
 parseAll s = extract $ P.parseOnly helper s
          where extract (Right x) = x
                helper = P.manyTill parseExpr P.endOfInput
 
-parseOne :: B.ByteString -> BenValue
+parseOne :: ByteString -> BenValue
 parseOne s = extract $ P.parseOnly parseExpr s
           where extract (Right x) = x
 
 -- ................... Accessors .................
--- | takes a key and a dict and returns the associated benvalue
 get :: Key -> BenValue -> Maybe (Key, BenValue)
 get k (BenDict kvs) = getHelper k kvs
 get _ _ = Nothing
@@ -110,36 +110,34 @@ encodeOne b@(BenDict _) = encodeDict b
 
 -- ................... Testing .................
 
-parseTests = test [ -- parseInt
-                   parseTest "i2e" ~?= (BenInt 2),
-                   parseTest "i45e" ~?= (BenInt 45),
-                   parseTest "i456456345623454654356354e" ~?= (BenInt 456456345623454654356354),
-                   parseTest "i-9e" ~?= (BenInt (-9)),
-                   parseTest "i-23e" ~?= (BenInt (-23)),
-                   parseTest "i+34e" ~?= (BenInt 34),
-                   -- parseString
-                   parseTest "0:" ~?= (BenString ""),
-                   parseTest "1:a" ~?= (BenString "a"),
-                   parseTest "1:1" ~?= (BenString "1"),
-                   parseTest "5:hello" ~?= (BenString "hello"),
-                   parseTest "5:ab34c" ~?= (BenString "ab34c"),
-                   parseTest "5:-$@#!" ~?= (BenString "-$@#!"),
-                   parseTest "3:3:1" ~?= (BenString "3:1"),
-                   parseTest "1:xdiscarded" ~?= (BenString "x"),
-                   -- parse List 
-                   parseTest "le" ~?= (BenList []),
-                   parseTest "llee" ~?= (BenList [BenList []]),
-                   parseTest "llleee" ~?= (BenList [BenList [BenList []]]),
-                   parseTest "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"]), 
-                   parseTest "lli2eee" ~?= (BenList [BenList [BenInt 2]]),
-                   parseTest "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]]),
-                   -- parse dict
-                   parseTest "de" ~?= (BenDict []),
-                   parseTest "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), 
-                                                           (BenString "b", BenString  "y")])]
-
-
-
+parseTests = test 
+           [ -- parseInt
+             parseTest "i2e" ~?= (BenInt 2)
+           , parseTest "i45e" ~?= (BenInt 45)
+           , parseTest "i456456345623454654356354e" ~?= (BenInt 456456345623454654356354)
+           , parseTest "i-9e" ~?= (BenInt (-9))
+           , parseTest "i-23e" ~?= (BenInt (-23))
+           , parseTest "i+34e" ~?= (BenInt 34)
+             -- parseString
+           , parseTest "0:" ~?= (BenString "")
+           , parseTest "1:a" ~?= (BenString "a")
+           , parseTest "1:1" ~?= (BenString "1")
+           , parseTest "5:hello" ~?= (BenString "hello")
+           , parseTest "5:ab34c" ~?= (BenString "ab34c")
+           , parseTest "5:-$@#!" ~?= (BenString "-$@#!")
+           , parseTest "3:3:1" ~?= (BenString "3:1")
+           , parseTest "1:xdiscarded" ~?= (BenString "x")
+             -- parse List 
+           , parseTest "le" ~?= (BenList [])
+           , parseTest "llee" ~?= (BenList [BenList []])
+           , parseTest "llleee" ~?= (BenList [BenList [BenList []]])
+           , parseTest "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"])
+           , parseTest "lli2eee" ~?= (BenList [BenList [BenInt 2]])
+           , parseTest "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]])
+             -- parse dict
+           , parseTest "de" ~?= (BenDict [])
+           , parseTest "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), (BenString "b", BenString  "y")])
+           ]
 
 
 main :: IO ()

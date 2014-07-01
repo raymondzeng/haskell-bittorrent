@@ -10,8 +10,8 @@ data Address = Addr { host :: HostName
 data Peer = Peer { peerId       :: Maybe String 
                  , amInterested :: Bool
                  , amChoking    :: Bool
-                 , isInterested :: Bool
-                 , isChoking    :: Bool
+                 , theyInterested :: Bool
+                 , theyChoking    :: Bool
                  }
      deriving (Show)
 
