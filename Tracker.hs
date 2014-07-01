@@ -1,17 +1,17 @@
 module Tracker where
 
-import System.Environment
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
+import           System.Environment
+import qualified Data.ByteString        as B
+import qualified Data.ByteString.Char8  as B8
 import qualified Data.ByteString.Base16 as Base16
-import Crypto.Hash.SHA1 (hash)
-import Bencode hiding (main)
-import Data.Char
-import Data.Word (Word8)
-import Data.List (intercalate)
-import Data.List.Split (chunksOf)
-
-import Network (PortID (..), HostName)
+import           Crypto.Hash.SHA1       (hash)
+import           Bencode                hiding (main)
+import           Data.Char
+import           Data.Word              (Word8)
+import           Data.List              (intercalate)
+import           Data.List.Split        (chunksOf)
+import           Network                (PortID (..), HostName)
+import           Peer                   (Address (Addr))
 
 ---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)
@@ -32,13 +32,9 @@ getInfoHash m = hash . B8.pack $ encoded
                   encoded = encodeOne $ extract info
                   extract (Just (k,v)) = v
 
-
 --- components of the tracker GET request
-peerIdHash :: String
-peerIdHash = B8.unpack . hash . B8.pack $ ['a'..'Z']
-
-port :: String
-port = show 6881
+peerIdHash :: B.ByteString
+peerIdHash = hash . B8.pack $ ['a'..'Z']
 
 uploaded :: String
 uploaded = show 0
@@ -73,8 +69,8 @@ bsChunksOf n bs = map B.pack $ chunksOf n $ B.unpack bs
 requestUrl :: MetaInfo -> String
 requestUrl m = getAnnounceUrl m ++ "?" ++ 
               urlify [("info_hash", urlEncode . getInfoHash $ m),
-                      ("peer_id", urlEncode . B8.pack $ peerIdHash),
-                      ("port", port),
+                      ("peer_id", urlEncode peerIdHash),
+                      ("port", show 6881),
                       ("uploaded", uploaded),
                       ("downloaded", downloaded),
                       ("left", toDownload m),
@@ -88,16 +84,16 @@ getPeers :: MetaInfo -> String
 getPeers m = extract $ get (BenString "peers") m 
          where extract (Just (_,(BenString s))) = s
 
-peerList :: MetaInfo -> [(HostName, PortID)]
+peerList :: MetaInfo -> [Address]
 peerList m = map processPeer $ chunksOf 6 word8s
          where word8s = B.unpack . B8.pack . getPeers $ m
 
 
-processPeer :: [Word8] -> (HostName, PortID) 
-processPeer raw = (host, (PortNumber (x*256 + y)))
+processPeer :: [Word8] -> Address
+processPeer raw = Addr host (PortNumber (x*256 + y))
             where (ip, port) = splitAt 4 raw
                   host = intercalate "." $ map show ip
                   (x:y:[]) = map fromIntegral port
 
-processResponse :: String -> [(HostName, PortID)]
+processResponse :: String -> [Address]
 processResponse s = peerList . parseOne . B8.pack $ s

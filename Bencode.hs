@@ -3,13 +3,13 @@
 module Bencode where
 
 import qualified Data.Attoparsec.ByteString.Char8 as P
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
-import Data.ByteString.Char8 (pack)
-import Control.Applicative ((<$>), (<*>), (<|>), (<*), (*>))
-import System.Environment (getArgs)
-import Test.HUnit ((~?=), test, runTestTT)
-import Data.List (find)
+import qualified Data.ByteString                  as B
+import qualified Data.ByteString.Char8            as B8
+import           Data.ByteString.Char8            (pack)
+import           Control.Applicative              ((<$>), (<*>), (<|>), (<*), (*>))
+import           System.Environment               (getArgs)
+import           Test.HUnit                       ((~?=), test, runTestTT)
+import           Data.List                        (find)
 
 
 -- TODO : 

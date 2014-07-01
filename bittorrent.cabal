@@ -17,4 +17,4 @@ cabal-version:       >=1.8
 executable bittorrent
   main-is: Main.hs
   -- other-modules:       
-  build-depends:       base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*
+  build-depends:       base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*, binary ==0.5.1.*, cereal ==0.4.*
