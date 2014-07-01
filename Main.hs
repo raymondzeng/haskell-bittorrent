@@ -1,12 +1,15 @@
+module Main where
+
 import           Bencode                (parseOne, MetaInfo, get, BenValue(..))
 import           Control.Applicative    ((<$>))
 import qualified Data.ByteString        as B
 import           Messages               
-import           Network                as N        
+import           Network                (connectTo)
 import           Network.HTTP           (simpleHTTP, getRequest, getResponseBody)
-import           Peer                   (Address(..))         
+import           Peer                   (Address(..), newPeer)         
 import           Tracker                (announceTracker, getInfoHash)
-import           System.Environment
+import           System.Environment     (getArgs)
+import           System.IO              (Handle)
 
 getFilePath :: IO String
 getFilePath = do
@@ -23,13 +26,15 @@ validMeta m = has info announce
                 has _ Nothing = False
                 has _ _ = True
 
-
 getMetaInfo :: String -> IO (Maybe MetaInfo)
 getMetaInfo fn = do
             meta <- parseOne <$> B.readFile fn
             if (validMeta meta)
                then return (Just meta)
                else return Nothing
+
+createHandle :: Address -> IO Handle
+createHandle a = connectTo (host a) (port a)
 
 main :: IO ()
 main = do
@@ -41,3 +46,4 @@ main = do
                   peerList <- announceTracker meta   
                   let infoHash = getInfoHash meta
                   print peerList
+                  print $ map (newPeer . createHandle) [head peerList]

@@ -53,6 +53,8 @@ instance Binary HandShake where
                               (getByteString 8 >> getByteString 20) 
                               (getByteString 20)
             
+
+--- Not sure what the fail would do while program running for real ..
 instance Binary Message where
          put KeepAlive       = putW32 0
          put Choke           = putW32 1 >> putWord8 0
@@ -61,10 +63,13 @@ instance Binary Message where
          put NotInterested   = putW32 1 >> putWord8 3
          put (Have n)        = putW32 5 >> putWord8 4 >> putW32 n
          put (BitField bf)   = do
-                             let len = 1 + (length bf `div` 8) -- TODO check /8
-                             putW32 . fromIntegral $ len
-                             putWord8 5
-                             putBitField bf
+                             if length bf `mod` 8 /= 0
+                                then fail "BitField length mus b multiple of 8"
+                                else do 
+                                     let len = 1 + (length bf `div` 8) 
+                                     putW32 . fromIntegral $ len
+                                     putWord8 5
+                                     putBitField bf
 
          put (Request i b l) = putW32 13 >> putWord8 6 >>
                                putW32 i >> putW32 b >> putW32 l
@@ -119,10 +124,7 @@ getBitField :: ByteString -> [Bool]
 getBitField bs = concat $ map (\byte -> map (testBit byte) [7,6..0]) bytes
             where bytes = B.unpack bs
 
-
-
-
--- ............  Tests
+-- ............  Tests ...............
 putGetTests = test [ f have    ~?= have
                    , f bf      ~?= bf
                    , f req     ~?= req
