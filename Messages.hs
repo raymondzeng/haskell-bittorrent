@@ -4,7 +4,7 @@ import           Bencode                (MetaInfo)
 import           Control.Applicative    (liftA3, (<$>), (<*>), (*>))
 import           Data.Binary            (Binary, get, put)
 import           Data.Binary.Put
-import           Data.Binary.Get       
+import           Data.Binary.Get
 import           Data.Bits.Bitwise      (packWord8BE, unpackWord8BE)
 import           Data.Bits              (testBit)
 import           Data.ByteString        (ByteString)
@@ -15,6 +15,8 @@ import           Data.List.Split        (chunksOf)
 import           Data.Word              (Word8, Word32)
 import           Tracker                (getInfoHash, peerIdHash)
 import           Test.HUnit             ((~?=), test, runTestTT)
+import           Peer
+
 
 data HandShake = HandShake { protocol :: String
                            , infoHash :: ByteString
@@ -103,9 +105,16 @@ instance Binary Message where
                        8 -> liftA3 Cancel getW32 getW32 getW32
                        9 -> Port . fromIntegral <$> getWord16be
        
+putW16 :: Integer -> Put
 putW16 = putWord16be . fromIntegral
+
+putW32 :: Integer -> Put
 putW32 = putWord32be . fromIntegral 
+
+getW32 :: Get Integer
 getW32 = fromIntegral <$> getWord32be
+
+getString :: Int -> Get String
 getString n = B8.unpack <$> getByteString n
 
 -- ??? packWord8BE takes 8 booleans as arguments
@@ -143,3 +152,9 @@ putGetTests = test [ f have    ~?= have
 
 blockSize :: Integer
 blockSize = 16384
+
+
+sendMsg :: HandShake -> Peer -> IO ()
+sendMsg msg peer = do
+                 let handle = getHandle peer
+                 BL.hPut handle (runPut . put $ msg)

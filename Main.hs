@@ -2,14 +2,15 @@ module Main where
 
 import           Bencode                (parseOne, MetaInfo, get, BenValue(..))
 import           Control.Applicative    ((<$>))
+import           Data.ByteString        (ByteString)
 import qualified Data.ByteString        as B
 import           Messages               
 import           Network                (connectTo)
 import           Network.HTTP           (simpleHTTP, getRequest, getResponseBody)
 import           Peer                   (Address(..), newPeer)         
-import           Tracker                (announceTracker, getInfoHash)
+import           Tracker                (announceTracker, getInfoHash, peerIdHash)
 import           System.Environment     (getArgs)
-import           System.IO              (Handle)
+import           System.IO              (Handle, hSetBuffering, BufferMode(..))
 
 getFilePath :: IO String
 getFilePath = do
@@ -36,6 +37,15 @@ getMetaInfo fn = do
 createHandle :: Address -> IO Handle
 createHandle a = connectTo (host a) (port a)
 
+startPeer :: Address -> ByteString -> ByteString -> IO Handle
+startPeer addr ih pid = do
+                 handle <- createHandle addr
+                 hSetBuffering handle LineBuffering
+                 let peer = newPeer handle
+                     hshake = HandShake "BitTorrent protocol" ih pid
+                 sendMsg hshake peer
+                 return handle
+
 main :: IO ()
 main = do
      fileName <- getFilePath
@@ -45,5 +55,7 @@ main = do
           Just meta -> do 
                   peerList <- announceTracker meta   
                   let infoHash = getInfoHash meta
-                  print peerList
-                  print $ map (newPeer . createHandle) [head peerList]
+                  print (head peerList)
+                  handle <- startPeer (head peerList) infoHash peerIdHash
+                  bs <-  B.hGetContents handle
+                  print bs

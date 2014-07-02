@@ -100,8 +100,6 @@ processPeer raw = Addr host (PortNumber (x*256 + y))
 processResponse :: String -> [Address]
 processResponse s = peerList . parseOne . B8.pack $ s
 
-
-
 -- Make the request to the Tracker 
 announceTracker :: MetaInfo -> IO [Address]
 announceTracker m = processResponse <$> resp

@@ -9,10 +9,7 @@ data Address = Addr { host :: HostName
                     }
      deriving (Show)
 
-instance Show a => Show (IO a) where
-         show _ = "IO Handle"
-
-data Peer = Peer { peerHandle     :: IO Handle
+data Peer = Peer { getHandle      :: Handle
                  , peerId         :: Maybe String 
                  , amInterested   :: Bool
                  , amChoking      :: Bool
@@ -21,7 +18,7 @@ data Peer = Peer { peerHandle     :: IO Handle
                  }
      deriving (Show)
 
-newPeer :: IO Handle -> Peer
+newPeer :: Handle -> Peer
 newPeer handle = Peer handle 
                       Nothing
                       False
