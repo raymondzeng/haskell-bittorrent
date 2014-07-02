@@ -36,6 +36,7 @@ data Message = KeepAlive
              | Piece            Index Integer ByteString
              | Cancel           Index Integer Integer
              | Port             Integer
+             | Extended         
              deriving (Show, Eq)
 
 type Index = Integer
@@ -57,6 +58,7 @@ instance Binary HandShake where
 
 --- Not sure what the fail would do while program running for real ..
 instance Binary Message where
+         put Extended        = putW32 1 >> putWord8 20
          put KeepAlive       = putW32 0
          put Choke           = putW32 1 >> putWord8 0
          put Unchoke         = putW32 1 >> putWord8 1 
@@ -106,7 +108,8 @@ matchId len = do
                  7 -> liftA3 Piece getW32 getW32 $ getByteString (len - 9) 
                  8 -> liftA3 Cancel getW32 getW32 getW32 
                  9 -> Port . fromIntegral <$> getWord16be
-                 _ -> fail $ "Failed to match Message " ++ show len ++ " " ++ show id
+                 20 -> return Extended
+                 _ -> fail $ "Failed to match Message: length " ++ show len ++ "; id: " ++ show id
 
 putW16 :: Integer -> Put
 putW16 = putWord16be . fromIntegral

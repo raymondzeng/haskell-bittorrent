@@ -63,14 +63,14 @@ startPeer addr ih pid = do
                  msg <- BL.hGet handle (intlen + 48)
                  let peerHs = (runGet get (bs <> msg) :: HandShake)
                  print peerHs
-                 len <- BL.hGet handle 4
-                 print len
-                 let intlen = w4ToInt len
-                 print intlen
-                 msg <- BL.hGet handle intlen
-                 print msg
-                 let m = (runGet get (len <> msg) :: Message)
-                 print m
+                 let loop = do
+                     len <- BL.hGet handle 4
+                     let intlen = w4ToInt len
+                     msg <- BL.hGet handle intlen
+                     let m = (runGet get (len <> msg) :: Message)
+                     print m
+                     loop
+                 loop
              where w4ToInt len = fromIntegral (BIN.decode $ len :: Word32)
 
 main :: IO ()
