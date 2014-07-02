@@ -79,9 +79,9 @@ parseOne s = extract $ P.parseOnly parseExpr s
           where extract (Right x) = x
 
 -- ................... Accessors .................
-get :: Key -> BenValue -> Maybe (Key, BenValue)
-get k (BenDict kvs) = getHelper k kvs
-get _ _ = Nothing
+getFromDict :: Key -> BenValue -> Maybe (Key, BenValue)
+getFromDict k (BenDict kvs) = getHelper k kvs
+getFromDict _ _ = Nothing
 
 getHelper :: Key -> [(Key, BenValue)] -> Maybe (Key, BenValue)
 getHelper k kvs = find (\(s,v) -> s == k) kvs

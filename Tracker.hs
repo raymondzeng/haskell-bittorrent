@@ -16,14 +16,14 @@ import           Peer                   (Address (Addr))
 
 ---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)
-getInfo m = get (BenString "info") m
+getInfo m = getFromDict (BenString "info") m
 
 getPieces :: MetaInfo -> Maybe (BenValue, BenValue)
-getPieces m = get (BenString "pieces") $ val (getInfo m)
+getPieces m = getFromDict (BenString "pieces") $ val (getInfo m)
           where val (Just (_,v)) = v
 
 getAnnounceUrl :: MetaInfo -> String
-getAnnounceUrl m = clean . extract $ get (BenString "announce") m
+getAnnounceUrl m = clean . extract $ getFromDict (BenString "announce") m
                where extract (Just (_, v)) = v
                      clean (BenString s) = filter (/= '"') s
 
@@ -83,7 +83,7 @@ requestUrl m = getAnnounceUrl m ++ "?" ++
 
 ---- tracker response
 getPeers :: MetaInfo -> String
-getPeers m = extract $ get (BenString "peers") m 
+getPeers m = extract $ getFromDict (BenString "peers") m 
          where extract (Just (_,(BenString s))) = s
 
 peerList :: MetaInfo -> [Address]

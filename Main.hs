@@ -1,14 +1,27 @@
 module Main where
 
-import           Bencode                (parseOne, MetaInfo, get, BenValue(..))
+import           Bencode                ( parseOne
+                                        , MetaInfo
+                                        , getFromDict
+                                        , BenValue(..))
+
 import           Control.Applicative    ((<$>))
+import           Data.Binary            (get)
+import           Data.Binary.Get        (runGet)
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString        as B
+import           Data.ByteString.Lazy   (fromChunks)
 import           Messages               
 import           Network                (connectTo)
-import           Network.HTTP           (simpleHTTP, getRequest, getResponseBody)
+import           Network.HTTP           ( simpleHTTP
+                                        , getRequest
+                                        , getResponseBody)
+
 import           Peer                   (Address(..), newPeer)         
-import           Tracker                (announceTracker, getInfoHash, peerIdHash)
+import           Tracker                ( announceTracker
+                                        , getInfoHash
+                                        , peerIdHash)
+
 import           System.Environment     (getArgs)
 import           System.IO              (Handle, hSetBuffering, BufferMode(..))
 
@@ -21,8 +34,8 @@ getFilePath = do
 
 validMeta :: MetaInfo -> Bool
 validMeta m = has info announce
-          where info = get (BenString "info") m
-                announce = get (BenString "announce") m
+          where info = getFromDict (BenString "info") m
+                announce = getFromDict (BenString "announce") m
                 has Nothing _ = False
                 has _ Nothing = False
                 has _ _ = True
@@ -57,5 +70,5 @@ main = do
                   let infoHash = getInfoHash meta
                   print (head peerList)
                   handle <- startPeer (head peerList) infoHash peerIdHash
-                  bs <-  B.hGetContents handle
-                  print bs
+                  bs <-  B.hGet handle 100
+                  print $ (runGet get (fromChunks [bs]) :: HandShake)
