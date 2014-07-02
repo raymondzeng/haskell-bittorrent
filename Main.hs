@@ -6,7 +6,9 @@ import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString        as B
-import           Data.ByteString.Lazy   (fromChunks)
+import qualified Data.ByteString.Char8  as B8       
+import qualified Data.ByteString.Lazy   as BL
+import           Data.Monoid            ((<>))
 import           Messages               
 import           Network                (connectTo)
 import           Network.HTTP           ( simpleHTTP
@@ -16,7 +18,7 @@ import           Network.HTTP           ( simpleHTTP
 import           Peer
 import           Tracker
 import           System.Environment     (getArgs)
-import           System.IO              (Handle, hSetBuffering, BufferMode(..))
+import           System.IO              (Handle, hSetBuffering, BufferMode(..), hSetBinaryMode)
 
 getFilePath :: IO String
 getFilePath = do
@@ -43,14 +45,34 @@ getMetaInfo fn = do
 createHandle :: Address -> IO Handle
 createHandle a = connectTo (host a) (port a)
 
-startPeer :: Address -> ByteString -> ByteString -> IO Handle
+startPeer :: Address -> ByteString -> ByteString -> IO ()
 startPeer addr ih pid = do
                  handle <- createHandle addr
+                 hSetBinaryMode handle True
                  hSetBuffering handle LineBuffering
                  let peer = newPeer handle
                      hshake = HandShake "BitTorrent protocol" ih pid
                  sendMsg hshake peer
-                 return handle
+                 bs <- BL.hGet handle 68
+                 let peerHs = (runGet get bs :: HandShake)
+                 print $ (infoHash peerHs) == ih
+                 let loop = do
+                     -- len <- BL.hGet handle 4
+                     -- let intlen = bsToInt len
+                     -- print intlen
+                     -- if intlen == 0
+                     --    then loop
+                     --    else do
+                     --         msg <- BL.hGet handle intlen
+                 --             print $ (runGet get (len <> msg) :: Message)
+                 --             loop
+                      msg <- BL.hGetContents handle
+                      print $ (runGet get msg :: Message)
+                      loop
+                 loop
+            where bsToInt = extract . B8.readInt . BL.toStrict
+                  extract Nothing = 0
+                  extract (Just (i, _)) = i
 
 main :: IO ()
 main = do
@@ -60,8 +82,6 @@ main = do
           Nothing   -> fail "Invalid contents of .torrent file"
           Just meta -> do 
                   peerList <- announceTracker meta   
-                  let infoHash = getInfoHash meta
+                  let ih = getInfoHash meta
                   print (head peerList)
-                  handle <- startPeer (head peerList) infoHash peerIdHash
-                  bs <-  B.hGet handle 100
-                  print $ (runGet get (fromChunks [bs]) :: HandShake)
+                  startPeer (head peerList) ih peerIdHash

@@ -1,8 +1,4 @@
-module Messages (
-         Message(..)
-       , HandShake(..)
-       , sendMsg
-       ) where
+module Messages where
 
 import           Bencode                (MetaInfo)
 import           Control.Applicative    (liftA3, (<$>), (<*>), (*>))
@@ -111,8 +107,8 @@ matchId len = do
                  7 -> liftA3 Piece getW32 getW32 $ getByteString (len - 9) 
                  8 -> liftA3 Cancel getW32 getW32 getW32 
                  9 -> Port . fromIntegral <$> getWord16be
-                 _ -> fail "Invalid message ID:"
-       
+                 _ -> fail $ "Failed to match Message " ++ show len ++ " " ++ show id
+
 putW16 :: Integer -> Put
 putW16 = putWord16be . fromIntegral
 
@@ -140,6 +136,23 @@ putBitField bf = putByteString . B.pack $ map (apply8 packWord8BE) tuples
 getBitField :: ByteString -> [Bool]
 getBitField bs = concat $ map (\byte -> map (testBit byte) [7,6..0]) bytes
             where bytes = B.unpack bs
+
+-- ............  Tests ...............
+putGetTests = test [ f have    ~?= have
+                   , f bf      ~?= bf
+                   , f req     ~?= req
+                   , f cancel  ~?= cancel
+                   , f port    ~?= port
+                   , f2 hshake ~?= hshake
+                   ]
+            where f      = runGet get . runPut . put
+                  f2     = runGet get . runPut . put
+                  have   = Have 12
+                  bf     = BitField $ (take 6 $ repeat True) ++ [False, True]
+                  req    = Request 0 0 10
+                  cancel = Cancel 0 0 10
+                  port   = Port 5881
+                  hshake = HandShake "BitTorrent Protocol" peerIdHash peerIdHash
 
 blockSize :: Integer
 blockSize = 16384
