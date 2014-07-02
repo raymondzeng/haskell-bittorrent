@@ -1,10 +1,6 @@
 module Main where
 
-import           Bencode                ( parseOne
-                                        , MetaInfo
-                                        , getFromDict
-                                        , BenValue(..))
-
+import           Bencode
 import           Control.Applicative    ((<$>))
 import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
@@ -17,11 +13,8 @@ import           Network.HTTP           ( simpleHTTP
                                         , getRequest
                                         , getResponseBody)
 
-import           Peer                   (Address(..), newPeer)         
-import           Tracker                ( announceTracker
-                                        , getInfoHash
-                                        , peerIdHash)
-
+import           Peer
+import           Tracker
 import           System.Environment     (getArgs)
 import           System.IO              (Handle, hSetBuffering, BufferMode(..))
 

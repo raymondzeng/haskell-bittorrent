@@ -1,4 +1,8 @@
-module Peer where
+module Peer (
+         Peer(..)
+       , Address(..)
+       , newPeer
+       ) where
 
 import Network          (PortID (..), HostName)
 import System.IO        (Handle)

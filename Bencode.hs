@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bencode where
+module Bencode (
+         MetaInfo
+       , BenValue(..)
+       , parseOne
+       , getFromDict
+       , encodeOne
+       ) where
 
 import qualified Data.Attoparsec.ByteString.Char8 as P
 import           Data.ByteString                  (ByteString)
@@ -65,10 +71,6 @@ parseExpr = parseInt
           <|> parseList          
           <|> parseDict
 
-parseTest :: String -> BenValue
-parseTest s = f $ P.parseOnly parseExpr (pack s)
-         where f (Right v) = v
-
 parseAll :: ByteString -> [BenValue]
 parseAll s = extract $ P.parseOnly helper s
          where extract (Right x) = x
@@ -107,41 +109,3 @@ encodeOne b@(BenString _) = encodeString b
 encodeOne b@(BenInt _) = encodeInt b
 encodeOne b@(BenList _) = encodeList b
 encodeOne b@(BenDict _) = encodeDict b
-
--- ................... Testing .................
-
-parseTests = test 
-           [ -- parseInt
-             parseTest "i2e" ~?= (BenInt 2)
-           , parseTest "i45e" ~?= (BenInt 45)
-           , parseTest "i456456345623454654356354e" ~?= (BenInt 456456345623454654356354)
-           , parseTest "i-9e" ~?= (BenInt (-9))
-           , parseTest "i-23e" ~?= (BenInt (-23))
-           , parseTest "i+34e" ~?= (BenInt 34)
-             -- parseString
-           , parseTest "0:" ~?= (BenString "")
-           , parseTest "1:a" ~?= (BenString "a")
-           , parseTest "1:1" ~?= (BenString "1")
-           , parseTest "5:hello" ~?= (BenString "hello")
-           , parseTest "5:ab34c" ~?= (BenString "ab34c")
-           , parseTest "5:-$@#!" ~?= (BenString "-$@#!")
-           , parseTest "3:3:1" ~?= (BenString "3:1")
-           , parseTest "1:xdiscarded" ~?= (BenString "x")
-             -- parse List 
-           , parseTest "le" ~?= (BenList [])
-           , parseTest "llee" ~?= (BenList [BenList []])
-           , parseTest "llleee" ~?= (BenList [BenList [BenList []]])
-           , parseTest "li2e3:abce" ~?= (BenList [BenInt 2, BenString "abc"])
-           , parseTest "lli2eee" ~?= (BenList [BenList [BenInt 2]])
-           , parseTest "lli2eeei2e5:disca" ~?= (BenList [BenList [BenInt 2]])
-             -- parse dict
-           , parseTest "de" ~?= (BenDict [])
-           , parseTest "d1:a1:x1:b1:ye" ~?= (BenDict [(BenString "a", BenString "x"), (BenString "b", BenString  "y")])
-           ]
-
-
-main :: IO ()
-main = do
-       args <- getArgs
-       B.readFile (args !! 0) >>= print . parseAll
-       

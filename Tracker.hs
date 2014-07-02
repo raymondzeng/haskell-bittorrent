@@ -1,6 +1,10 @@
-module Tracker where
+module Tracker (
+         getInfoHash
+       , peerIdHash
+       , announceTracker
+       ) where
 
-import           Bencode                hiding (main)
+import           Bencode               
 import           Control.Applicative    ((<$>))
 import           Crypto.Hash.SHA1       (hash)
 import           Data.ByteString        (ByteString)
@@ -10,7 +14,7 @@ import qualified Data.ByteString.Char8  as B8
 import           Data.List              (intercalate)
 import           Data.List.Split        (chunksOf)
 import           Data.Word              (Word8)
-import           Network                (PortID (..), HostName)
+import           Network                (PortID (..))
 import           Network.HTTP           (simpleHTTP, getRequest, getResponseBody)
 import           Peer                   (Address (Addr))
 
@@ -31,7 +35,7 @@ getInfoHash :: MetaInfo -> ByteString
 getInfoHash m = hash . B8.pack $ encoded
             where info = getInfo m
                   encoded = encodeOne $ extract info
-                  extract (Just (k,v)) = v
+                  extract (Just (_,v)) = v
 
 --- components of the tracker GET request
 peerIdHash :: ByteString
