@@ -19,6 +19,7 @@ import           Peer
 
 
 data HandShake = HandShake { protocol :: String
+                           , reserved :: ByteString
                            , infoHash :: ByteString
                            , peerId   :: ByteString
                            }
@@ -41,19 +42,17 @@ type Index = Integer
 type BitField = [Bool]
 
 instance Binary HandShake where
-         put (HandShake s i p) = do
+         put (HandShake s r i p) = do
                                let len = length s
                                putWord8 . fromIntegral $ len
                                putByteString . B8.pack $ s
-                               putByteString . B8.pack $ reserved
+                               putByteString r
                                putByteString i
                                putByteString p
-                               where reserved = "00000000"
          get = do
              len <- fromIntegral <$> getWord8
-             liftA3 HandShake (getString len) 
-                              (getByteString 8 >> getByteString 20) 
-                              (getByteString 20)
+             HandShake <$> (getString len) <*> (getByteString 8) 
+                           <*> (getByteString 20) <*> (getByteString 20)
             
 
 --- Not sure what the fail would do while program running for real ..
@@ -136,23 +135,6 @@ putBitField bf = putByteString . B.pack $ map (apply8 packWord8BE) tuples
 getBitField :: ByteString -> [Bool]
 getBitField bs = concat $ map (\byte -> map (testBit byte) [7,6..0]) bytes
             where bytes = B.unpack bs
-
--- ............  Tests ...............
-putGetTests = test [ f have    ~?= have
-                   , f bf      ~?= bf
-                   , f req     ~?= req
-                   , f cancel  ~?= cancel
-                   , f port    ~?= port
-                   , f2 hshake ~?= hshake
-                   ]
-            where f      = runGet get . runPut . put
-                  f2     = runGet get . runPut . put
-                  have   = Have 12
-                  bf     = BitField $ (take 6 $ repeat True) ++ [False, True]
-                  req    = Request 0 0 10
-                  cancel = Cancel 0 0 10
-                  port   = Port 5881
-                  hshake = HandShake "BitTorrent Protocol" peerIdHash peerIdHash
 
 blockSize :: Integer
 blockSize = 16384

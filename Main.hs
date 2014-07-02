@@ -1,6 +1,7 @@
 module Main where
 
 import           Bencode
+import qualified Data.Binary                 as BIN
 import           Control.Applicative    ((<$>))
 import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
@@ -9,6 +10,7 @@ import qualified Data.ByteString        as B
 import qualified Data.ByteString.Char8  as B8       
 import qualified Data.ByteString.Lazy   as BL
 import           Data.Monoid            ((<>))
+import           Data.Word
 import           Messages               
 import           Network                (connectTo)
 import           Network.HTTP           ( simpleHTTP
@@ -18,7 +20,10 @@ import           Network.HTTP           ( simpleHTTP
 import           Peer
 import           Tracker
 import           System.Environment     (getArgs)
-import           System.IO              (Handle, hSetBuffering, BufferMode(..), hSetBinaryMode)
+import           System.IO              ( Handle 
+                                        , hSetBuffering
+                                        , BufferMode(..)        
+                                        , hSetBinaryMode)
 
 getFilePath :: IO String
 getFilePath = do
@@ -51,28 +56,22 @@ startPeer addr ih pid = do
                  hSetBinaryMode handle True
                  hSetBuffering handle LineBuffering
                  let peer = newPeer handle
-                     hshake = HandShake "BitTorrent protocol" ih pid
+                     hshake = HandShake "BitTorrent protocol" (B8.pack "00000000") ih pid
                  sendMsg hshake peer
-                 bs <- BL.hGet handle 68
-                 let peerHs = (runGet get bs :: HandShake)
-                 print $ (infoHash peerHs) == ih
-                 let loop = do
-                     -- len <- BL.hGet handle 4
-                     -- let intlen = bsToInt len
-                     -- print intlen
-                     -- if intlen == 0
-                     --    then loop
-                     --    else do
-                     --         msg <- BL.hGet handle intlen
-                 --             print $ (runGet get (len <> msg) :: Message)
-                 --             loop
-                      msg <- BL.hGetContents handle
-                      print $ (runGet get msg :: Message)
-                      loop
-                 loop
-            where bsToInt = extract . B8.readInt . BL.toStrict
-                  extract Nothing = 0
-                  extract (Just (i, _)) = i
+                 bs <- BL.hGet handle 1
+                 let intlen = fromIntegral $ BL.head bs
+                 msg <- BL.hGet handle (intlen + 48)
+                 let peerHs = (runGet get (bs <> msg) :: HandShake)
+                 print peerHs
+                 len <- BL.hGet handle 4
+                 print len
+                 let intlen = w4ToInt len
+                 print intlen
+                 msg <- BL.hGet handle intlen
+                 print msg
+                 let m = (runGet get (len <> msg) :: Message)
+                 print m
+             where w4ToInt len = fromIntegral (BIN.decode $ len :: Word32)
 
 main :: IO ()
 main = do

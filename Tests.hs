@@ -55,7 +55,7 @@ messageTests = test [ f have    ~?= have
                   req    = Request 0 0 10
                   cancel = Cancel 0 0 10
                   port   = Port 5881
-                  hshake = HandShake "BitTorrent Protocol" peerIdHash peerIdHash
+                  hshake = HandShake "BitTorrent Protocol" "0000000" peerIdHash peerIdHash
 
 main :: IO ()
 main = runTestTT bencodeTests 
