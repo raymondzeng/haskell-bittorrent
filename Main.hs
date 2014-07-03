@@ -12,12 +12,12 @@ import qualified Data.ByteString.Lazy   as BL
 import           Data.Monoid            ((<>))
 import           Data.Word
 import           Messages               
-import           Network                (connectTo)
 import           Network.HTTP           ( simpleHTTP
                                         , getRequest
                                         , getResponseBody)
 
 import           Peer
+import           PeerManager
 import           Tracker
 import           System.Environment     (getArgs)
 import           System.IO              ( Handle 
@@ -36,9 +36,9 @@ validMeta :: MetaInfo -> Bool
 validMeta m = has info announce
           where info = getFromDict (BenString "info") m
                 announce = getFromDict (BenString "announce") m
-                has Nothing _ = False
-                has _ Nothing = False
-                has _ _ = True
+                has Nothing _       = False
+                has _       Nothing = False
+                has _       _       = True
 
 getMetaInfo :: String -> IO (Maybe MetaInfo)
 getMetaInfo fn = do
@@ -46,32 +46,6 @@ getMetaInfo fn = do
             if (validMeta meta)
                then return (Just meta)
                else return Nothing
-
-createHandle :: Address -> IO Handle
-createHandle a = connectTo (host a) (port a)
-
-startPeer :: Address -> ByteString -> ByteString -> IO ()
-startPeer addr ih pid = do
-                 handle <- createHandle addr
-                 hSetBinaryMode handle True
-                 hSetBuffering handle LineBuffering
-                 let peer = newPeer handle
-                     hshake = HandShake "BitTorrent protocol" 0 ih pid
-                 sendMsg hshake peer
-                 bs <- BL.hGet handle 1
-                 let intlen = fromIntegral $ BL.head bs
-                 msg <- BL.hGet handle (intlen + 48)
-                 let peerHs = (runGet get (bs <> msg) :: HandShake)
-                 print peerHs
-                 let loop = do
-                     len <- BL.hGet handle 4
-                     let intlen = w4ToInt len
-                     msg <- BL.hGet handle intlen
-                     let m = (runGet get (len <> msg) :: Message)
-                     print m
-                     loop
-                 loop
-             where w4ToInt len = fromIntegral (BIN.decode $ len :: Word32)
 
 main :: IO ()
 main = do
@@ -82,5 +56,4 @@ main = do
           Just meta -> do 
                   peerList <- announceTracker meta   
                   let ih = getInfoHash meta
-                  print (head peerList)
-                  startPeer (head peerList) ih peerIdHash
+                  startPeers peerList ih peerIdHash
