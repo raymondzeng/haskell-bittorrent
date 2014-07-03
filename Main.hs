@@ -1,7 +1,6 @@
 module Main where
 
 import           Bencode
-import qualified Data.Binary                 as BIN
 import           Control.Applicative    ((<$>))
 import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
@@ -14,7 +13,8 @@ import           Data.Word
 import           Messages               
 import           Network.HTTP           ( simpleHTTP
                                         , getRequest
-                                        , getResponseBody)
+                                        , getResponseBody
+                                        )
 
 import           Peer
 import           PeerManager
@@ -23,7 +23,8 @@ import           System.Environment     (getArgs)
 import           System.IO              ( Handle 
                                         , hSetBuffering
                                         , BufferMode(..)        
-                                        , hSetBinaryMode)
+                                        , hSetBinaryMode
+                                        )
 
 getFilePath :: IO String
 getFilePath = do

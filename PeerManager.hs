@@ -1,11 +1,13 @@
 module PeerManager where
 
-import Data.ByteString  (ByteString)
+import Data.ByteString                  (ByteString)
 import Control.Concurrent
+import Control.Concurrent.STM.TVar
+import           Control.Concurrent.Async (race_)
 import Messages
-import Network          (connectTo)
+import Network                          (connectTo)
 import Peer
-import Tracker          (Address(..))
+import Tracker                          (Address(..))
 import System.IO
 
 createHandle :: Address -> IO Handle
@@ -25,8 +27,11 @@ startPeer addr ih pid = do
                       Left s -> print s
                       Right () -> do 
                                   sendMessage Interested peer
-                                  listenPeer peer
+                                  tvPeer <- newTVarIO peer
+                                  gTvBf <- newTVarIO (take 80 $ repeat False)
+                                  race_ (listenToPeer tvPeer gTvBf)
+                                        (requestStuff tvPeer gTvBf)
 
 startPeers :: [Address] -> ByteString -> ByteString -> IO ()
-startPeers peerList ih pid = startPeer (head peerList) ih pid
-           where handles = map createHandle peerList          
+startPeers peerList ih pid = startPeer (head . tail$ peerList) ih pid
+          -- where handles = map createHandle peerList
