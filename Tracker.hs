@@ -1,5 +1,6 @@
 module Tracker (
-         getInfoHash
+         Address(..)
+       , getInfoHash
        , peerIdHash
        , announceTracker
        ) where
@@ -14,9 +15,14 @@ import qualified Data.ByteString.Char8  as B8
 import           Data.List              (intercalate)
 import           Data.List.Split        (chunksOf)
 import           Data.Word              (Word8)
-import           Network                (PortID (..))
+import           Network                (HostName, PortID (..))
 import           Network.HTTP           (simpleHTTP, getRequest, getResponseBody)
-import           Peer                   (Address (Addr))
+
+
+data Address = Addr { host :: HostName
+                    , port :: PortID
+                    }
+                    deriving (Show)
 
 ---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)

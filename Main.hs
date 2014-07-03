@@ -56,7 +56,7 @@ startPeer addr ih pid = do
                  hSetBinaryMode handle True
                  hSetBuffering handle LineBuffering
                  let peer = newPeer handle
-                     hshake = HandShake "BitTorrent protocol" (B8.pack "00000000") ih pid
+                     hshake = HandShake "BitTorrent protocol" 0 ih pid
                  sendMsg hshake peer
                  bs <- BL.hGet handle 1
                  let intlen = fromIntegral $ BL.head bs
