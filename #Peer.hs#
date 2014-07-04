@@ -1,7 +1,7 @@
 module Peer where
 
 import           Control.Applicative         ((<*>))
-import           Control.Concurrent          (threadDelay)
+import           Control.Concurrent          (threadDelay) ter t
 import           Control.Concurrent.STM.TVar ( TVar
                                              , readTVarIO
                                              , modifyTVar)
