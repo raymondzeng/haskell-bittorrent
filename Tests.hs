@@ -45,7 +45,7 @@ messageTests = test [ f have    ~?= have
                    , f bf      ~?= bf
                    , f req     ~?= req
                    , f cancel  ~?= cancel
-                   , f port    ~?= port
+                   , f pt    ~?= pt
                    , f2 hshake ~?= hshake
                    ]
             where f      = runGet get . runPut . put
@@ -54,8 +54,8 @@ messageTests = test [ f have    ~?= have
                   bf     = BitField $ (take 6 $ repeat True) ++ [False, True]
                   req    = Request 0 0 10
                   cancel = Cancel 0 0 10
-                  port   = Port 5881
-                  hshake = HandShake "BitTorrent Protocol" "0000000" peerIdHash peerIdHash
+                  pt   = Port 5881
+                  hshake = HandShake "BitTorrent Protocol" 0 peerIdHash peerIdHash
 
 main :: IO ()
 main = runTestTT bencodeTests 

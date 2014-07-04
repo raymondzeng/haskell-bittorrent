@@ -1,5 +1,6 @@
 module Peer where
 
+import Control.Concurrent
 import Control.Concurrent.STM.TVar
 import           Control.Monad        (forever)
 import           Control.Monad.STM
@@ -14,12 +15,13 @@ import           Tracker              (Address)
 import           System.IO            (Handle)
 
 data Peer = Peer { getHandle      :: Handle
-                 , maybeId         :: Maybe String 
+                 , maybeId        :: Maybe String 
                  , amInterested   :: Bool
                  , amChoking      :: Bool
                  , theyInterested :: Bool
                  , theyChoking    :: Bool
                  , bitfield       :: BitField
+                 , reqPending     :: Bool
                  }
      deriving (Show)
 
@@ -31,6 +33,7 @@ newPeer handle = Peer { getHandle      = handle
                       , theyInterested = False
                       , theyChoking    = True
                       , bitfield       = []
+                      , reqPending     = False
                       }
 
 -- ... ....... Handshake stuff
@@ -62,16 +65,15 @@ listenToPeer tvPeer gTvBf = forever $ do
     msg <- getMessage $ getHandle peer
     case msg of
          Choke -> updatePeer tvPeer (\p -> p {theyChoking = True})
-         Unchoke -> updatePeer tvPeer (\p -> p {theyChoking = False})
+         Unchoke -> updatePeer tvPeer (\p -> p {theyChoking = False}) >> print "unchoke"
          Interested -> updatePeer tvPeer (\p -> p {theyInterested = True})
          NotInterested -> updatePeer tvPeer (\p -> p {theyInterested = False})
          Have n -> updatePeer tvPeer (updateBF n)
-         BitField bf -> updatePeer tvPeer (\p -> p {bitfield = bf})
+         BitField bf -> updatePeer tvPeer (\p -> p {bitfield = bf}) 
          Piece i _ _ -> do
                print i
                atomically $ modifyTVar gTvBf (updatePieces i)
-               p <- readTVarIO gTvBf
-               print p
+               updatePeer tvPeer (\p -> p {reqPending = False})
          _ -> do
            p <- readTVarIO tvPeer
            print p
@@ -101,19 +103,29 @@ updatePieces n bf = updateList (fromIntegral n) True bf
 -- ...... The stuff that sends requests
 requestStuff :: TVar Peer -> TVar BitField -> IO ()
 requestStuff tvPeer gTvBf = forever $ do
+             peer <- readTVarIO tvPeer
              gBf <- readTVarIO gTvBf
-             let maybeNextWanted = findIndex (==False) gBf
-             case maybeNextWanted of
+             case findIndex (==False) gBf of
                   Nothing -> print "Got all pieces"
                   Just idx -> do
-                       let request = Request (fromIntegral idx) 0 blockSize
-                       peer <- readTVarIO tvPeer
-                       sendMessage request peer
-
+                       let req = Request (fromIntegral idx) 0 blockSize
+                       sendMessage req peer
+                       print "sent req"
+                       threadDelay (1 * 1000000)
 
 sendMessage :: Message -> Peer -> IO ()
 sendMessage msg peer = Lazy.hPut handle (runPut . put $ msg)
             where handle = getHandle peer
+            
+sendRequest :: Peer -> TVar BitField -> IO ()
+sendRequest peer bf= do
+            gBf <- readTVarIO bf
+            case findIndex (==False) gBf of
+                 Nothing -> print "Got all pieces"
+                 Just idx -> do
+                      let req = Request (fromIntegral idx) 0 blockSize
+                      sendMessage req peer
+                      print "sent req"
 
 toInt :: Lazy.ByteString -> Int
 toInt bs = fromIntegral (Bin.decode $ bs :: Word32)
