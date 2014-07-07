@@ -99,7 +99,7 @@ listenToPeer peer tor = forever $ do
                          >> print "BitField"
         Piece b@(Block i o s) -> do
                atomically $ writeTVar (reqPending peer) False
-               valid <- atomically $ consumeBlock tor b
+               valid <- consumeBlock tor b
                case valid of
                  Nothing -> return ()
                  Just b -> print b

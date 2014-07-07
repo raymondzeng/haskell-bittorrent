@@ -21,7 +21,8 @@ import Messages (Message(..), BitField, Block(..))
 import Tracker (getInfo, getInfoHash)
 
 data Torrent = Torrent
-    { infoHash    :: ByteString        -- infohash for torrent
+    { fileName    :: String            -- name of the file to write the data to
+    , infoHash    :: ByteString        -- infohash for torrent
     , myId        :: ByteString        -- peer Id for handshake
     , blockSize   :: Int               -- max size of block for each request
     , pieceLength :: Int               -- length of each piece
@@ -31,6 +32,7 @@ data Torrent = Torrent
     , nextReq     :: TVar (Maybe (Int, Int)) -- the idx and offset of next block
     , hashes      :: [ByteString]      -- hashes for each piece
     , pieceBuffer :: TVar [[Block]]    
+    , lastWritten :: TVar Int
     } 
       
 newTorrent :: MetaInfo -> ByteString -> STM Torrent
@@ -38,8 +40,10 @@ newTorrent meta pid = do
     h <- newTVar $ take count $ repeat False
     n <- newTVar $ Just (0,0)
     p <- newTVar $ take count $ repeat []
+    w <- newTVar $ 0
     return Torrent 
-        { infoHash    = getInfoHash meta
+        { fileName    = fName
+        , infoHash    = getInfoHash meta
         , myId        = pid
         , blockSize   = defaultBSize
         , pieceLength = pieceLen
@@ -49,9 +53,11 @@ newTorrent meta pid = do
         , nextReq     = n
         , hashes      = map B8.pack $ chunksOf 20 pieces
         , pieceBuffer = p
+        , lastWritten = w
         }
   where Just (_, BenString pieces) = getPieces meta
         Just (_, BenInt pieceLen) = getPieceLen meta
+        Just (_, BenString fName) = getFileName meta
         count = length pieces `div` 20
         defaultBSize = 16384
         bp = ceiling $ (realToFrac pieceLen) / (realToFrac defaultBSize)
@@ -83,16 +89,23 @@ nextRequest tor = do
           let len = min (blockSize tor) (pieceLength tor - offset)
           return . Just $ Request idx offset len
 
+-- TODO : drop connection if invalid hash. needs to boil up exception
+
 -- returns Nothing if this block doesn't complete a piece
 -- otherwise, hashes the piece formed by the blocks and returns
 -- whether that hash matches the hash in the .torrent metainfo
-consumeBlock :: Torrent -> Block -> STM (Maybe Bool)
+consumeBlock :: Torrent -> Block -> IO (Maybe Bool)
 consumeBlock tor b@(Block i o c) = do
-    modifyTVar (haves tor) (updatePieces i)
-    modifyTVar (pieceBuffer tor) (updateBuffer b)
-    blockBuff <- (!! i) <$> readTVar (pieceBuffer tor)
+    atomically $ modifyTVar (haves tor) (updatePieces i)
+    atomically $ modifyTVar (pieceBuffer tor) (updateBuffer b)
+    blockBuff <- (!! i) <$> readTVarIO (pieceBuffer tor)
     if length blockBuff == (blocksPer tor)
-       then return . Just $ checkHash tor i blockBuff
+       then do
+           let valid = checkHash tor i blockBuff
+           if valid 
+              then writeOut tor i 
+              else return () -- TODO
+           return $ Just valid
        else return Nothing
 
 checkHash :: Torrent -> Int -> [Block] -> Bool
@@ -102,7 +115,18 @@ checkHash tor i blocks = realHash == toCheck
         toCheck = hash piece
         realHash = (hashes tor) !! i
 
+-- TODO : check if file with name already exists before appending
+writeOut :: Torrent -> Int -> IO ()
+writeOut tor i = do
+    blocks <- (!! i) <$> readTVarIO (pieceBuffer tor)
+    let piece = B.concat $ map (\(Block _ _ c) -> c) (sort blocks)
+    B.appendFile (fileName tor) piece
+
 -- ...... Utils
+getFileName :: MetaInfo -> Maybe (BenValue, BenValue)
+getFileName m = getFromDict (BenString "name") $ val (getInfo m)
+  where val (Just (_,v)) = v
+
 getPieces :: MetaInfo -> Maybe (BenValue, BenValue)
 getPieces m = getFromDict (BenString "pieces") $ val (getInfo m)
   where val (Just (_,v)) = v
