@@ -18,6 +18,7 @@ import           Data.Word                   (Word8, Word16, Word32)
 import           System.IO                   (Handle)
 
 import           Messages                    ( BitField 
+                                             , Block(..)
                                              , HandShake(..)
                                              , Message(..))
 import           Torrent
@@ -26,12 +27,12 @@ import           Tracker                     (Address)
 data Peer = Peer 
     { getHandle      :: Handle
     , maybeId        :: Maybe String 
-    , amInterested   :: Bool
-    , amChoking      :: Bool
-    , theyInterested :: Bool
-    , theyChoking    :: Bool
-    , bitfield       :: BitField
-    , reqPending     :: Bool
+    , amInterested   :: TVar Bool
+    , amChoking      :: TVar Bool
+    , theyInterested :: TVar Bool
+    , theyChoking    :: TVar Bool
+    , bitfield       :: TVar BitField
+    , reqPending     :: TVar Bool
     } deriving (Show)
 
 newPeer :: Handle -> Peer
@@ -68,8 +69,8 @@ validateHandShake to@(HandShake _ _ tih _) from@(HandShake fport _ fih _)
 
 -- ......... The stuff that listens and changes state
 -- ......... listenToPeer should be run concurr with requestStuff
-listenToPeer :: TVar Peer -> TVar BitField -> IO ()
-listenToPeer tvPeer globalHaves = forever $ do
+listenToPeer :: TVar Peer -> Torrent -> IO ()
+listenToPeer tvPeer tor = forever $ do
     peer <- readTVarIO tvPeer
     msg <- getMessage $ getHandle peer
     case msg of
@@ -81,14 +82,13 @@ listenToPeer tvPeer globalHaves = forever $ do
                          >> print "interested"
         NotInterested -> updatePeer tvPeer (\p -> p {theyInterested = False})
                          >> print "notinterested"
-        Have n        -> updatePeer tvPeer (updateBF n)
+        Have n        -> updatePeer tvPeer (\p -> p {bitfield = updatedBf n p})
                          >> print ("Have " ++ show n)
         BitField bf   -> updatePeer tvPeer (\p -> p {bitfield = bf}) 
                          >> print "BitField"
-        Piece i b s    -> do
-            print $ "Piece " ++ show i ++ " " ++ show b
-            atomically $ modifyTVar globalHaves (updatePieces i)
-       --     updatePeer tvPeer (\p -> p {reqPending = False})
+        Piece b@(Block i o s) -> do
+               atomically $ consumeBlock tor b
+               print $ "Piece " ++ show i ++ " " ++ show o
         _             -> do
             p <- readTVarIO tvPeer
             print p
@@ -100,20 +100,15 @@ getMessage handle = do
     msg <- Lazy.hGet handle mlen
     return $ Bin.decode (bytes <> msg)
 
+-- modifies a field in a Peer
 updatePeer :: TVar Peer -> (Peer -> Peer) -> IO ()
 updatePeer peer fun = atomically $ modifyTVar peer fun
 
-updateList :: Int -> a -> [a] -> [a]
-updateList n newVal (x:xs)
-    | n == 0 = newVal:xs
-    | otherwise = x : (updateList (n-1) newVal xs)
-     
-updateBF :: Word32 -> Peer -> Peer
-updateBF n peer = peer {bitfield = newBF}
-  where newBF = updateList (fromIntegral n) True (bitfield peer)
+-- returns a new bitfield with the element at index n of the peer's bitfield
+-- changed to True
+updatedBf :: Int -> Peer -> BitField
+updatedBf n peer = updatePieces n (bitfield peer)
 
-updatePieces :: Word32 -> BitField -> BitField
-updatePieces n bf = updateList (fromIntegral n) True bf
              
 -- ...... The stuff that sends requests
 requestStuff :: TVar Peer -> Torrent -> IO ()
@@ -140,3 +135,5 @@ sendMessage msg peer = do
 -- ...... Utilities
 toInt :: Lazy.ByteString -> Int
 toInt bs = fromIntegral (Bin.decode $ bs :: Word32)
+
+     

@@ -1,6 +1,6 @@
 module Messages where
 
-import           Control.Applicative    (liftA3, (<$>), (<*>))
+import           Control.Applicative    (liftA2, liftA3, (<$>), (<*>))
 import           Data.Binary            (Binary, get, put)
 import           Data.Binary.Put        
 import           Data.Binary.Get
@@ -11,6 +11,12 @@ import qualified Data.ByteString        as B
 import qualified Data.ByteString.Char8  as B8
 import           Data.List.Split        (chunksOf)
 import           Data.Word              (Word16, Word32, Word64)
+
+data Block = Block 
+    { index   :: Int
+    , offset  :: Int
+    , content :: ByteString
+    } deriving (Show, Eq)
 
 data HandShake = HandShake 
      { protocol :: String
@@ -24,16 +30,15 @@ data Message = KeepAlive
              | Unchoke
              | Interested
              | NotInterested
-             | Have             Word32
+             | Have             Int
              | BitField         BitField
-             | Request          Index Word32 Word32
-             | Piece            Index Word32 ByteString
-             | Cancel           Index Word32 Word32
+             | Request          Int Int Int
+             | Piece            Block
+             | Cancel           Int Int Int
              | Port             Word16
              | Extended         
              deriving (Show, Eq)
 
-type Index = Word32
 type BitField = [Bool]
 
 instance Binary HandShake where
@@ -58,33 +63,33 @@ instance Binary Message where
     put Unchoke         = putWord32be 1 >> putWord8 1 
     put Interested      = putWord32be 1 >> putWord8 2
     put NotInterested   = putWord32be 1 >> putWord8 3
-    put (Have n)        = putWord32be 5 >> putWord8 4 >> putWord32be n
+    put (Have n)        = putWord32be 5 >> putWord8 4 >> put32 n
     put (BitField bf)   = do
                           if length bf `mod` 8 /= 0
-                             then fail "BitField length mus b multiple of 8"
+                             then fail "BitField length must b multiple of 8"
                              else do 
                                   let len = 1 + (length bf `div` 8) 
-                                  putWord32be . fromIntegral $ len
+                                  put32 len
                                   putWord8 5
                                   putBitField bf
 
     put (Request i b l) = putWord32be 13 >> putWord8 6 >>
-                          putWord32be i >> putWord32be b >> putWord32be l
-    put (Piece i b bs)  = do
+                          put32 i >> put32 b >> put32 l
+    put (Piece (Block i b bs))  = do
                           let len = 9 + B.length bs
-                          putWord32be $ fromIntegral len
+                          put32 len
                           putWord8 7
-                          putWord32be i
-                          putWord32be b
+                          put32 i
+                          put32 b
                           putByteString bs
                           
     put (Cancel i b l)  = putWord32be 13 >> putWord8 8 >>
-                          putWord32be i >> putWord32be b >> putWord32be l
+                          put32 i >> put32 b >> put32 l
     put (Port n)        = putWord32be 3 >> putWord8 9 >> putWord16be n
     put Extended        = putWord32be 1 >> putWord8 20
 
     get = do
-        len <- fromIntegral <$> getWord32be
+        len <- get32
         case len of
             0         -> return KeepAlive
             _         -> matchId len
@@ -97,14 +102,22 @@ matchId len = do
         1  -> return Unchoke
         2  -> return Interested
         3  -> return NotInterested
-        4  -> Have <$> getWord32be
+        4  -> Have <$> get32
         5  -> BitField . getBitField <$> getByteString (len - 1) 
-        6  -> liftA3 Request getWord32be getWord32be getWord32be
-        7  -> liftA3 Piece getWord32be getWord32be $ getByteString (len - 9) 
-        8  -> liftA3 Cancel getWord32be getWord32be getWord32be 
+        6  -> liftA3 Request get32 get32 get32
+        7  -> do
+               block <- liftA3 (Block) get32 get32 $ getByteString (len - 9) 
+               return $ Piece block
+        8  -> liftA3 Cancel get32 get32 get32 
         9  -> Port . fromIntegral <$> getWord16be
         20 -> return Extended
         _  -> fail $ "Failed match: length " ++ show len ++ " id: " ++ show mId
+
+put32 :: Int -> Put
+put32 = putWord32be . fromIntegral
+
+get32 :: Get Int
+get32 = fromIntegral <$> getWord32be
 
 getString :: Int -> Get String
 getString n = B8.unpack <$> getByteString n

@@ -29,16 +29,15 @@ initAndRun tor handle = do
         Left s -> print s
         Right () -> do 
             tvPeer <- newTVarIO peer
-            globalHaves <- newTVarIO (take 80 $ repeat False)
-            race_ (listenToPeer tvPeer globalHaves)
+            race_ (listenToPeer tvPeer tor)
                   (requestStuff tvPeer tor)
 
 -- withSocketsDo req for Windows; only adding for portability
 startPeer :: Torrent -> Address -> IO ()
 startPeer tor addr = do
   handle <- createHandle addr
-  forkIO $ initAndRun tor handle
+  initAndRun tor handle
   return ()
 
 startPeers :: [Address] -> Torrent -> IO ()
-startPeers peerList tor = mapM_ (startPeer tor) peerList
+startPeers peerList tor = mapM_ (startPeer tor) [head . tail $ peerList]

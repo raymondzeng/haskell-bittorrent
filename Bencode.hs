@@ -31,7 +31,7 @@ import           Test.HUnit                       ( (~?=)
 -- Error testing, make sure parsing works on bad data
 
 data BenValue = BenString   String
-              | BenInt      Integer
+              | BenInt      Int
               | BenList     [BenValue]
               | BenDict     [(Key, BenValue)]
               deriving (Eq, Show)
