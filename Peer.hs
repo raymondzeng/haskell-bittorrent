@@ -1,10 +1,13 @@
 module Peer where
 
-import           Control.Applicative         ((<*>))
+import           Control.Applicative         ((<$>), (<*>))
 import           Control.Concurrent          (threadDelay)
+import           Control.Concurrent.STM      (STM)
 import           Control.Concurrent.STM.TVar ( TVar
+                                             , readTVar
                                              , readTVarIO
-                                             , modifyTVar)
+                                             , writeTVar
+                                             , newTVar)
 import           Control.Monad               (forever)
 import           Control.Monad.STM           (atomically)
 import           Data.Binary                 (Binary)
@@ -33,19 +36,26 @@ data Peer = Peer
     , theyChoking    :: TVar Bool
     , bitfield       :: TVar BitField
     , reqPending     :: TVar Bool
-    } deriving (Show)
+    } 
 
-newPeer :: Handle -> Peer
-newPeer handle = Peer 
-                 { getHandle      = handle 
-                 , maybeId        = Nothing
-                 , amInterested   = False
-                 , amChoking      = True
-                 , theyInterested = False
-                 , theyChoking    = True
-                 , bitfield       = []
-                 , reqPending     = False
-                 }
+newPeer :: Handle -> STM Peer
+newPeer handle = do
+    ai <- newTVar False
+    ac <- newTVar True
+    ti <- newTVar False
+    tc <- newTVar True
+    bf <- newTVar []
+    rp <- newTVar False
+    return Peer 
+        { getHandle      = handle 
+        , maybeId        = Nothing
+        , amInterested   = ai
+        , amChoking      = ac
+        , theyInterested = ti
+        , theyChoking    = tc
+        , bitfield       = bf
+        , reqPending     = rp
+        }
 
 -- ... ....... Handshake stuff
 sendHandShake :: HandShake -> Peer -> IO ()
@@ -69,29 +79,30 @@ validateHandShake to@(HandShake _ _ tih _) from@(HandShake fport _ fih _)
 
 -- ......... The stuff that listens and changes state
 -- ......... listenToPeer should be run concurr with requestStuff
-listenToPeer :: TVar Peer -> Torrent -> IO ()
-listenToPeer tvPeer tor = forever $ do
-    peer <- readTVarIO tvPeer
+listenToPeer :: Peer -> Torrent -> IO ()
+listenToPeer peer tor = forever $ do
     msg <- getMessage $ getHandle peer
     case msg of
-        Choke         -> updatePeer tvPeer (\p -> p {theyChoking = True})
+        Choke         -> atomically (writeTVar (theyChoking peer) True)
                          >> print "choke"
-        Unchoke       -> updatePeer tvPeer (\p -> p {theyChoking = False}) 
+        Unchoke       -> atomically (writeTVar (theyChoking peer) False)
                          >> print "unchoke"
-        Interested    -> updatePeer tvPeer (\p -> p {theyInterested = True})
+        Interested    -> atomically (writeTVar (theyInterested peer) True)
                          >> print "interested"
-        NotInterested -> updatePeer tvPeer (\p -> p {theyInterested = False})
+        NotInterested -> atomically (writeTVar (theyInterested peer) False)
                          >> print "notinterested"
-        Have n        -> updatePeer tvPeer (\p -> p {bitfield = updatedBf n p})
-                         >> print ("Have " ++ show n)
-        BitField bf   -> updatePeer tvPeer (\p -> p {bitfield = bf}) 
+        Have n        -> do
+               new <- atomically $ updatedBf n peer
+               atomically (writeTVar (bitfield peer) new)
+               >> print ("Have " ++ show n)
+        BitField bf   -> atomically (writeTVar (bitfield peer) bf)
                          >> print "BitField"
         Piece b@(Block i o s) -> do
+               atomically $ writeTVar (reqPending peer) False
                atomically $ consumeBlock tor b
                print $ "Piece " ++ show i ++ " " ++ show o
-        _             -> do
-            p <- readTVarIO tvPeer
-            print p
+        _             -> print "unknown message"
+              
 
 getMessage :: Handle -> IO Message
 getMessage handle = do
@@ -100,31 +111,32 @@ getMessage handle = do
     msg <- Lazy.hGet handle mlen
     return $ Bin.decode (bytes <> msg)
 
--- modifies a field in a Peer
-updatePeer :: TVar Peer -> (Peer -> Peer) -> IO ()
-updatePeer peer fun = atomically $ modifyTVar peer fun
-
 -- returns a new bitfield with the element at index n of the peer's bitfield
 -- changed to True
-updatedBf :: Int -> Peer -> BitField
-updatedBf n peer = updatePieces n (bitfield peer)
+updatedBf :: Int -> Peer -> STM BitField
+updatedBf n peer = do
+    old <- readTVar $ bitfield peer
+    return $ updatePieces n old
 
-             
 -- ...... The stuff that sends requests
-requestStuff :: TVar Peer -> Torrent -> IO ()
-requestStuff tvPeer tor = forever $ do    
-    peer <- readTVarIO tvPeer
-    if (theyChoking peer)
-       then do 
-         sendMessage Interested peer
-         threadDelay 500000
-       else do
-         maybeReq <- atomically . nextRequest $ tor
-         case maybeReq of
-           Nothing  -> print "Got all pieces"
-           Just req -> do
-              sendMessage req peer
-              threadDelay 500000
+requestStuff :: Peer -> Torrent -> IO ()
+requestStuff peer tor = forever $ do    
+    tc <- readTVarIO $ theyChoking peer
+    if tc
+      then do 
+        sendMessage Interested peer
+        threadDelay 1000000
+      else do
+        rp <- readTVarIO (reqPending peer)
+        if rp 
+           then threadDelay 500000
+           else do 
+             maybeReq <- atomically . nextRequest $ tor
+             case maybeReq of
+               Nothing  -> print "Got all pieces"
+               Just req -> do
+                  sendMessage req peer
+                  atomically $ writeTVar (reqPending peer) True
 
 sendMessage :: Message -> Peer -> IO ()
 sendMessage msg peer = do
