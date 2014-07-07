@@ -40,4 +40,4 @@ startPeer tor addr = do
   return ()
 
 startPeers :: [Address] -> Torrent -> IO ()
-startPeers peerList tor = mapM_ (startPeer tor) [head $ peerList]
+startPeers peerList tor = mapM_ (startPeer tor) [head peerList]

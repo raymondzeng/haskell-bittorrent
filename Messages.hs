@@ -18,12 +18,17 @@ data Block = Block
     , content :: ByteString
     } deriving (Show, Eq)
 
+instance Ord Block where
+    compare (Block i1 o1 _) (Block i2 o2 _) 
+        | i1 /= i2  = compare i1 i2
+        | otherwise = compare o1 o2
+
 data HandShake = HandShake 
-     { protocol :: String
-     , reserved :: Word64
-     , infoHash :: ByteString
-     , peerId   :: ByteString
-     } deriving (Show, Eq)
+    { protocol :: String
+    , reserved :: Word64
+    , infoHash :: ByteString
+    , peerId   :: ByteString
+    } deriving (Show, Eq)
 
 data Message = KeepAlive
              | Choke
