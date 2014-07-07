@@ -20,6 +20,7 @@ import           System.IO                   (Handle)
 import           Messages                    ( BitField 
                                              , HandShake(..)
                                              , Message(..))
+import           Torrent
 import           Tracker                     (Address)
 
 data Peer = Peer 
@@ -67,9 +68,8 @@ validateHandShake to@(HandShake _ _ tih _) from@(HandShake fport _ fih _)
 
 -- ......... The stuff that listens and changes state
 -- ......... listenToPeer should be run concurr with requestStuff
-
 listenToPeer :: TVar Peer -> TVar BitField -> IO ()
-listenToPeer tvPeer gTvBf = forever $ do
+listenToPeer tvPeer globalHaves = forever $ do
     peer <- readTVarIO tvPeer
     msg <- getMessage $ getHandle peer
     case msg of
@@ -78,15 +78,16 @@ listenToPeer tvPeer gTvBf = forever $ do
         Unchoke       -> updatePeer tvPeer (\p -> p {theyChoking = False}) 
                          >> print "unchoke"
         Interested    -> updatePeer tvPeer (\p -> p {theyInterested = True})
+                         >> print "interested"
         NotInterested -> updatePeer tvPeer (\p -> p {theyInterested = False})
+                         >> print "notinterested"
         Have n        -> updatePeer tvPeer (updateBF n)
                          >> print ("Have " ++ show n)
         BitField bf   -> updatePeer tvPeer (\p -> p {bitfield = bf}) 
                          >> print "BitField"
-        Piece i _ _   -> do
-            print i
-            atomically $ modifyTVar gTvBf (updatePieces i)
-            readTVarIO gTvBf >>= print
+        Piece i b s    -> do
+            print $ "Piece " ++ show i ++ " " ++ show b
+            atomically $ modifyTVar globalHaves (updatePieces i)
        --     updatePeer tvPeer (\p -> p {reqPending = False})
         _             -> do
             p <- readTVarIO tvPeer
@@ -100,7 +101,7 @@ getMessage handle = do
     return $ Bin.decode (bytes <> msg)
 
 updatePeer :: TVar Peer -> (Peer -> Peer) -> IO ()
-updatePeer peer withF = atomically $ modifyTVar peer withF
+updatePeer peer fun = atomically $ modifyTVar peer fun
 
 updateList :: Int -> a -> [a] -> [a]
 updateList n newVal (x:xs)
@@ -115,26 +116,27 @@ updatePieces :: Word32 -> BitField -> BitField
 updatePieces n bf = updateList (fromIntegral n) True bf
              
 -- ...... The stuff that sends requests
-requestStuff :: TVar Peer -> TVar BitField -> IO ()
-requestStuff tvPeer gTvBf = forever $ do
+requestStuff :: TVar Peer -> TVar Torrent -> IO ()
+requestStuff tvPeer tTor = forever $ do    
     peer <- readTVarIO tvPeer
-    gBf <- readTVarIO gTvBf
-    case findIndex (==False) gBf of
-        Nothing  -> print "Got all pieces"
-        Just idx -> do
-            let req = Request (fromIntegral idx) 0 blockSize
-            sendMessage req peer
-            threadDelay 500000
+    if (theyChoking peer)
+       then do 
+         sendMessage Interested peer
+         threadDelay 500000
+       else do
+         maybeReq <- atomically . nextRequest $ tTor
+         case maybeReq of
+           Nothing  -> print "Got all pieces"
+           Just req -> do
+              sendMessage req peer
+              threadDelay 500000
 
 sendMessage :: Message -> Peer -> IO ()
-sendMessage msg peer = Lazy.hPut handle (Bin.encode msg)
+sendMessage msg peer = do
+    Lazy.hPut handle (Bin.encode msg)
+    print $ "sent " ++ show msg
   where handle = getHandle peer
-
 
 -- ...... Utilities
 toInt :: Lazy.ByteString -> Int
 toInt bs = fromIntegral (Bin.decode $ bs :: Word32)
-
-
-blockSize :: Word32
-blockSize = 16384

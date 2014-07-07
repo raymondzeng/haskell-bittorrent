@@ -1,6 +1,7 @@
 module Main where
 
 import           Control.Applicative    ((<$>))
+import           Control.Concurrent.STM (newTVarIO)
 import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
 import           Data.ByteString        (ByteString)
@@ -25,6 +26,7 @@ import           Bencode
 import           Messages               
 import           Peer
 import           PeerManager
+import           Torrent
 import           Tracker
 
 getFilePath :: IO String
@@ -57,5 +59,6 @@ main = do
         Nothing   -> fail "Invalid contents of .torrent file"
         Just meta -> do 
                      peerList <- announceTracker meta   
-                     let ih = getInfoHash meta
-                     startPeers peerList ih peerIdHash
+                     let tor = newTorrent meta peerIdHash
+                     tTor <- newTVarIO tor
+                     startPeers peerList tTor

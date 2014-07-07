@@ -3,6 +3,7 @@ module Tracker
     , getInfoHash
     , peerIdHash
     , announceTracker
+    , getInfo
     ) where
 
 import           Control.Applicative    ((<$>))
@@ -30,10 +31,6 @@ data Address = Addr
 ---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)
 getInfo m = getFromDict (BenString "info") m
-
-getPieces :: MetaInfo -> Maybe (BenValue, BenValue)
-getPieces m = getFromDict (BenString "pieces") $ val (getInfo m)
-  where val (Just (_,v)) = v
 
 getAnnounceUrl :: MetaInfo -> String
 getAnnounceUrl m = clean . extract $ getFromDict (BenString "announce") m

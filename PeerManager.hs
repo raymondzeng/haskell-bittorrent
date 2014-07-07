@@ -3,21 +3,25 @@ module PeerManager where
 import           Data.ByteString                  (ByteString)
 import           Control.Concurrent
 import           Control.Concurrent.STM.TVar
-import           Control.Concurrent.Async (race_)
+import           Control.Concurrent.Async         (race_)
+import           Control.Exception                (bracket)
 import           Messages
-import           Network                          (connectTo)
+import           Network                          (connectTo, withSocketsDo)
 import           Peer
+import           Torrent
 import           Tracker                          (Address(..))
 import           System.IO                       
 
 createHandle :: Address -> IO Handle
 createHandle a = connectTo (host a) (port a)
 
-startPeer :: Address -> ByteString -> ByteString -> IO ()
-startPeer addr ih pid = do
-    handle <- createHandle addr
+initAndRun :: TVar Torrent -> Handle -> IO ()
+initAndRun tTor handle = do
     hSetBinaryMode handle True
+    tor <- readTVarIO tTor
     let peer = newPeer handle
+        ih = Torrent.infoHash tor
+        pid = myId tor
         hsTo = HandShake "BitTorrent protocol" 0 ih pid
     sendHandShake hsTo peer
     hsFrom <- getHandShake peer
@@ -26,11 +30,16 @@ startPeer addr ih pid = do
         Left s -> print s
         Right () -> do 
             tvPeer <- newTVarIO peer
-            gTvBf <- newTVarIO (take 80 $ repeat False)
-            sendMessage Interested peer
-            race_ (listenToPeer tvPeer gTvBf)
-                  (requestStuff tvPeer gTvBf)
+            globalHaves <- newTVarIO (take 80 $ repeat False)
+            race_ (listenToPeer tvPeer globalHaves)
+                  (requestStuff tvPeer tTor)
 
-startPeers :: [Address] -> ByteString -> ByteString -> IO ()
-startPeers peerList ih pid = startPeer (peerList !! 0) ih pid
-          -- where handles = map createHandle peerList
+-- withSocketsDo req for Windows; only adding for portability
+startPeer :: TVar Torrent -> Address -> IO ()
+startPeer tTor addr = do
+  handle <- createHandle addr
+  forkIO $ initAndRun tTor handle
+  return ()
+
+startPeers :: [Address] -> TVar Torrent -> IO ()
+startPeers peerList tTor = mapM_ (startPeer tTor) peerList

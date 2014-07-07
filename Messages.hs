@@ -124,6 +124,3 @@ putBitField bf = putByteString . B.pack $ map (apply8 packWord8BE) tuples
 getBitField :: ByteString -> [Bool]
 getBitField bs = concat $ map (\byte -> map (testBit byte) [7,6..0]) bytes
   where bytes = B.unpack bs
-
-blockSize :: Integer
-blockSize = 16384
