@@ -116,15 +116,15 @@ updatePieces :: Word32 -> BitField -> BitField
 updatePieces n bf = updateList (fromIntegral n) True bf
              
 -- ...... The stuff that sends requests
-requestStuff :: TVar Peer -> TVar Torrent -> IO ()
-requestStuff tvPeer tTor = forever $ do    
+requestStuff :: TVar Peer -> Torrent -> IO ()
+requestStuff tvPeer tor = forever $ do    
     peer <- readTVarIO tvPeer
     if (theyChoking peer)
        then do 
          sendMessage Interested peer
          threadDelay 500000
        else do
-         maybeReq <- atomically . nextRequest $ tTor
+         maybeReq <- atomically . nextRequest $ tor
          case maybeReq of
            Nothing  -> print "Got all pieces"
            Just req -> do

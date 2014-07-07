@@ -15,10 +15,9 @@ import           System.IO
 createHandle :: Address -> IO Handle
 createHandle a = connectTo (host a) (port a)
 
-initAndRun :: TVar Torrent -> Handle -> IO ()
-initAndRun tTor handle = do
+initAndRun :: Torrent -> Handle -> IO ()
+initAndRun tor handle = do
     hSetBinaryMode handle True
-    tor <- readTVarIO tTor
     let peer = newPeer handle
         ih = Torrent.infoHash tor
         pid = myId tor
@@ -32,14 +31,14 @@ initAndRun tTor handle = do
             tvPeer <- newTVarIO peer
             globalHaves <- newTVarIO (take 80 $ repeat False)
             race_ (listenToPeer tvPeer globalHaves)
-                  (requestStuff tvPeer tTor)
+                  (requestStuff tvPeer tor)
 
 -- withSocketsDo req for Windows; only adding for portability
-startPeer :: TVar Torrent -> Address -> IO ()
-startPeer tTor addr = do
+startPeer :: Torrent -> Address -> IO ()
+startPeer tor addr = do
   handle <- createHandle addr
-  forkIO $ initAndRun tTor handle
+  forkIO $ initAndRun tor handle
   return ()
 
-startPeers :: [Address] -> TVar Torrent -> IO ()
-startPeers peerList tTor = mapM_ (startPeer tTor) peerList
+startPeers :: [Address] -> Torrent -> IO ()
+startPeers peerList tor = mapM_ (startPeer tor) peerList

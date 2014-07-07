@@ -1,7 +1,7 @@
 module Main where
 
 import           Control.Applicative    ((<$>))
-import           Control.Concurrent.STM (newTVarIO)
+import           Control.Concurrent.STM (newTVarIO, atomically)
 import           Data.Binary            (get)
 import           Data.Binary.Get        (runGet)
 import           Data.ByteString        (ByteString)
@@ -59,6 +59,5 @@ main = do
         Nothing   -> fail "Invalid contents of .torrent file"
         Just meta -> do 
                      peerList <- announceTracker meta   
-                     let tor = newTorrent meta peerIdHash
-                     tTor <- newTVarIO tor
-                     startPeers peerList tTor
+                     tor <- atomically $ newTorrent meta peerIdHash
+                     startPeers peerList tor
