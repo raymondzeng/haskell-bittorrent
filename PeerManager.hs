@@ -4,7 +4,8 @@ import           Data.ByteString                  (ByteString)
 import           Control.Concurrent
 import           Control.Concurrent.STM.TVar
 import           Control.Concurrent.Async         (race_)
-import           Control.Exception                (bracket)
+import           Control.Exception                (bracket, SomeException)
+import           Control.Monad                    (forM_)
 import           Control.Monad.STM                (atomically)
 import           Messages
 import           Network                          (connectTo, withSocketsDo)
@@ -14,10 +15,15 @@ import           Tracker                          (Address(..))
 import           System.IO                       
 
 createHandle :: Address -> IO Handle
-createHandle a = connectTo (host a) (port a)
+createHandle a = do
+  print (host a)
+  handle <- connectTo (host a) (port a) 
+  print "made handle"
+  return handle
 
 initAndRun :: Torrent -> Handle -> IO ()
 initAndRun tor handle = do
+    print "hello"
     hSetBinaryMode handle True
     peer <- atomically . newPeer $ handle
     let ih = Torrent.infoHash tor
@@ -32,12 +38,15 @@ initAndRun tor handle = do
             race_ (listenToPeer peer tor)
                   (requestStuff peer tor)
 
--- withSocketsDo req for Windows; only adding for portability
-startPeer :: Torrent -> Address -> IO ()
 startPeer tor addr = do
   handle <- createHandle addr
-  initAndRun tor handle
+  forkIO $ initAndRun tor handle
   return ()
+-- startPeer :: Torrent -> Address -> IO ThreadId
+-- startPeer tor addr = forkFinally start handleError
+--   where start = bracket (createHandle addr) (hClose) (\h -> initAndRun tor h)
+--         handleError (Left e) = print (show e)
+--         handleError (Right ()) = print "Done"
 
 startPeers :: [Address] -> Torrent -> IO ()
-startPeers peerList tor = mapM_ (startPeer tor) [head . tail $ peerList]
+startPeers peerList tor = mapM_ (startPeer tor) peerList >> print "Done"
