@@ -5,7 +5,7 @@ import           Control.Concurrent
 import           Control.Concurrent.STM.TVar
 import           Control.Concurrent.Async         (race_)
 import           Control.Exception                
-import           Control.Monad                    (forM_)
+import           Control.Monad                    (forM_, forever)
 import           Control.Monad.STM                (atomically)
 import           Messages
 import           Network                          (connectTo, withSocketsDo)
@@ -36,22 +36,14 @@ initAndRun tor handle = do
             race_ (listenToPeer peer tor)
                   (requestStuff peer tor)
 
--- I would like to be able to attempt to connectTo on a separate thread, but dont think i can
-startPeer :: Torrent -> Address -> IO ()
-startPeer tor addr = do 
-  res <- try (createHandle addr)
-  case res of
-    Left e -> print $ "Failed to connect to : " ++ show addr ++ show (e :: SomeException)
-    Right h -> (forkIO $ initAndRun tor h )>> return ()
-
-  -- start handle
-  -- where start handle = forkFinally (initAndRun tor handle) (handleError)
-  --       handleError (Left e) = print $ show e
-  --       handleError (Right ()) = print "thread Done"
-
---   where start = bracket (createHandle addr) (\h -> print "Closing" >> hClose h) (\_ -> print "helloooo") --(initAndRun tor) 
---     where    handleError (Left e) = print (show e)
---              handleError (Right ()) = print "thread done"
+startPeer tor addr = forkFinally start handleError
+  where start = bracket (createHandle addr) 
+                        (\h -> print "Closing Connection" >> hClose h) 
+                        (initAndRun tor) 
+        handleError (Left e) = print (show e)
+        handleError (Right ()) = print "Thread Done."
 
 startPeers :: [Address] -> Torrent -> IO ()
-startPeers peerList tor = mapM_ (startPeer tor) peerList 
+startPeers peerList tor = do
+    mapM_ (startPeer tor) peerList 
+    forever $ threadDelay 99999999999
