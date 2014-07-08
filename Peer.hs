@@ -138,6 +138,7 @@ requestStuff peer tor = forever $ do
              case maybeReq of
                Nothing  -> print "Got all pieces"
                Just req -> do
+                  print req
                   sendMessage req peer
                   atomically $ writeTVar (reqPending peer) True
 

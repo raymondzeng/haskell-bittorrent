@@ -71,7 +71,7 @@ nextToReq tor = do
       Nothing -> return Nothing
       Just (idx, offset) -> do
           if (pieceLength tor) - offset <= blockSize tor
-            then if idx >= numPieces tor 
+            then if idx >= numPieces tor - 2
                    then makeNext Nothing
                    else makeNext $ Just (idx + 1, 0)
             else makeNext $ Just (idx, offset + blockSize tor)

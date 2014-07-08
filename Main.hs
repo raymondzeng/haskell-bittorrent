@@ -61,4 +61,5 @@ main = do
                      peerList <- announceTracker meta   
                      tor <- atomically $ newTorrent meta peerIdHash
                      print $ peerList
+                     print $ numPieces tor
                      startPeers peerList tor
