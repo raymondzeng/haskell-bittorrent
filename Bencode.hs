@@ -125,3 +125,4 @@ encodeOne b@(BenString _) = encodeString b
 encodeOne b@(BenInt _)    = encodeInt b
 encodeOne b@(BenList _)   = encodeList b
 encodeOne b@(BenDict _)   = encodeDict b
+

@@ -57,9 +57,16 @@ main = do
     maybeMeta <- getMetaInfo fileName
     case maybeMeta of
         Nothing   -> fail "Invalid contents of .torrent file"
-        Just meta -> do 
-                     peerList <- announceTracker meta   
-                     tor <- atomically $ newTorrent meta peerIdHash
-                     print $ peerList
-                     print $ numPieces tor
-                     startPeers peerList tor
+        Just meta -> if multiFile meta 
+                       then print "Sorry, we do not support multi-file torrents"
+                       else do 
+                         peerList <- announceTracker meta   
+                         tor <- atomically $ newTorrent meta peerIdHash
+                         print $ peerList
+                         print $ numPieces tor
+                         startPeers peerList tor
+  where multiFile meta = case getFiles meta of
+                           Nothing -> False
+                           Just _ -> True
+        getFiles meta = getFromDict (BenString "files") (val $ getInfo meta)
+        val (Just (_,v)) = v

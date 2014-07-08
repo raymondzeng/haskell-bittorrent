@@ -18,7 +18,7 @@ import           Data.List                   (sort)
 import           Data.List.Split             (chunksOf)
 
 import           Bencode
-import           Messages                    ( Message(..), 
+import           Messages                    ( Message(..) 
                                              , BitField
                                              , Block(..)
                                              )
