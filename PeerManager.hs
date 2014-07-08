@@ -1,6 +1,7 @@
 module PeerManager where
 
 import           Data.ByteString                  (ByteString)
+import           Control.Applicative              ((<$>))
 import           Control.Concurrent
 import           Control.Concurrent.STM.TVar
 import           Control.Concurrent.Async         (race_)
@@ -47,4 +48,6 @@ startPeer tor addr = forkFinally start handleError
 startPeers :: [Address] -> Torrent -> IO ()
 startPeers peerList tor = do
     mapM_ (startPeer tor) peerList
-    forever $ threadDelay 99999999999
+          -- TODO change this to while children running
+    whileM_ (notComplete) $ threadDelay 100000
+  where notComplete = not <$> readTVarIO (done tor)

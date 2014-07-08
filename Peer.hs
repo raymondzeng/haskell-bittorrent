@@ -102,7 +102,8 @@ listenToPeer tor peer = forever $ do
                valid <- consumeBlock tor b
                case valid of
                  Nothing -> return ()
-                 Just b -> print $ "Hash valid? " ++ show b
+                 Just True -> print "Piece Hash is VALID"
+                 Just False -> print "Piece Hash BAD"
                print $ "Piece " ++ show i ++ " " ++ show o
         _             -> print "unknown message"
               
@@ -157,7 +158,7 @@ sendMessage msg peer = do
 toInt :: Lazy.ByteString -> Int
 toInt bs = fromIntegral (Bin.decode $ bs :: Word32)
 
--- |Execute an action repeatedly as long as the given boolean expression
+-- | Execute an action repeatedly as long as the given boolean expression
 -- returns True.  The condition is evaluated before the loop body.
 -- Discards results.
 -- Taken from monad-loops
