@@ -19,7 +19,8 @@ import           Crypto.Hash.SHA1       (hash)
 import           Network                (HostName, PortID (..))
 import           Network.HTTP           ( simpleHTTP
                                         , getRequest
-                                        , getResponseBody)
+                                        , getResponseBody
+                                        )
 
 import           Bencode               
 

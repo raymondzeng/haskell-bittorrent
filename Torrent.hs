@@ -7,18 +7,24 @@ module Torrent
     , updatePieces
     ) where
 
-import Control.Applicative ((<$>))
-import Control.Concurrent.STM
-import Control.Concurrent.STM.TVar 
-import           Crypto.Hash.SHA1       (hash)
-import qualified Data.ByteString as B
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B8
-import Data.List (sort)
-import Data.List.Split (chunksOf)
-import Bencode
-import Messages (Message(..), BitField, Block(..))
-import Tracker (getInfo, getInfoHash)
+import           Control.Applicative         ((<$>))
+import           Control.Concurrent.STM
+import           Control.Concurrent.STM.TVar 
+import           Crypto.Hash.SHA1            (hash)
+import qualified Data.ByteString             as B
+import           Data.ByteString             (ByteString)
+import qualified Data.ByteString.Char8       as B8
+import           Data.List                   (sort)
+import           Data.List.Split             (chunksOf)
+
+import           Bencode
+import           Messages                    ( Message(..), 
+                                             , BitField
+                                             , Block(..)
+                                             )
+import           Tracker                     ( getInfo
+                                             , getInfoHash
+                                             )
 
 data Torrent = Torrent
     { fileName    :: String            -- name of the file to write the data to
@@ -65,7 +71,9 @@ newTorrent meta pid = do
         defaultBSize = 16384
         bp = ceiling $ (realToFrac pieceLen) / (realToFrac defaultBSize)
 
--- returns Nothing if no more pieces to get
+-- if there are no more pieces to request,
+-- returns Nothing and sets done in tor to True
+-- otherwise returns Just (idx, offset)
 nextToReq :: Torrent 
           -> STM (Maybe (Int, Int)) -- the (idx, offset) for the request message
 nextToReq tor = do

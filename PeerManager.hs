@@ -1,6 +1,5 @@
 module PeerManager where
 
-import           Data.ByteString                  (ByteString)
 import           Control.Applicative              ((<$>))
 import           Control.Concurrent
 import           Control.Concurrent.STM.TVar
@@ -8,12 +7,14 @@ import           Control.Concurrent.Async         (race_)
 import           Control.Exception                
 import           Control.Monad                    (forM_, forever)
 import           Control.Monad.STM                (atomically)
-import           Messages
+import           Data.ByteString                  (ByteString)
 import           Network                          (connectTo, withSocketsDo)
+import           System.IO                       
+
+import           Messages
 import           Peer
 import           Torrent
 import           Tracker                          (Address(..))
-import           System.IO                       
 
 createHandle :: Address -> IO Handle
 createHandle addr = do

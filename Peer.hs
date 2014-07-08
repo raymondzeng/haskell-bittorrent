@@ -7,7 +7,8 @@ import           Control.Concurrent.STM.TVar ( TVar
                                              , readTVar
                                              , readTVarIO
                                              , writeTVar
-                                             , newTVar)
+                                             , newTVar
+                                             )
 import           Control.Monad               (forever)
 import           Control.Monad.STM           (atomically)
 import           Data.Binary                 (Binary)
@@ -23,7 +24,8 @@ import           System.IO                   (Handle)
 import           Messages                    ( BitField 
                                              , Block(..)
                                              , HandShake(..)
-                                             , Message(..))
+                                             , Message(..)
+                                             )
 import           Torrent
 import           Tracker                     (Address)
 

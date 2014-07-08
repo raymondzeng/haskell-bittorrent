@@ -12,7 +12,8 @@ import           Control.Applicative              ( (<$>)
                                                   , (<*>)
                                                   , (<|>)
                                                   , (<*)
-                                                  , (*>))
+                                                  , (*>)
+                                                  )
 import           Data.ByteString                  (ByteString)
 import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Char8            as B8
@@ -23,7 +24,8 @@ import           System.Environment               (getArgs)
 import qualified Data.Attoparsec.ByteString.Char8 as P
 import           Test.HUnit                       ( (~?=)
                                                   , test
-                                                  , runTestTT)
+                                                  , runTestTT
+                                                  )
 
 
 -- TODO : 
