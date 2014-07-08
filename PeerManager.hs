@@ -54,4 +54,4 @@ startPeer tor addr = do
 --              handleError (Right ()) = print "thread done"
 
 startPeers :: [Address] -> Torrent -> IO ()
-startPeers peerList tor = mapM_ (startPeer tor) peerList >> print "Torrent Complete"
+startPeers peerList tor = mapM_ (startPeer tor) peerList 
