@@ -34,8 +34,8 @@ initAndRun tor handle = do
     case validateHandShake hsTo hsFrom of
         Left s -> print s
         Right () -> do 
-            race_ (listenToPeer peer tor)
-                  (requestStuff peer tor)
+            race_ (listenToPeer tor peer)
+                  (talkToPeer tor peer)
 
 startPeer tor addr = forkFinally start handleError
   where start = bracket (createHandle addr) 

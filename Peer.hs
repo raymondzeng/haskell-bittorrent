@@ -79,8 +79,8 @@ validateHandShake to@(HandShake _ _ tih _) from@(HandShake fport _ fih _)
 
 -- ......... The stuff that listens and changes state
 -- ......... listenToPeer should be run concurr with requestStuff
-listenToPeer :: Peer -> Torrent -> IO ()
-listenToPeer peer tor = forever $ do
+listenToPeer :: Torrent -> Peer -> IO ()
+listenToPeer tor peer = forever $ do
     msg <- getMessage $ getHandle peer
     case msg of
         Choke         -> atomically (writeTVar (theyChoking peer) True)
@@ -122,8 +122,13 @@ updatedBf n peer = do
     return $ updatePieces n old
 
 -- ...... The stuff that sends requests
-requestStuff :: Peer -> Torrent -> IO ()
-requestStuff peer tor = forever $ do    
+talkToPeer :: Torrent -> Peer -> IO ()
+talkToPeer tor peer = whileM_ (notComplete) (makeRequests tor peer)
+                      >> print "Torrent completely downloaded"
+  where notComplete = not <$> readTVarIO (done tor)
+
+makeRequests :: Torrent -> Peer -> IO ()
+makeRequests tor peer = do    
     tc <- readTVarIO $ theyChoking peer
     if tc
       then do 
@@ -136,11 +141,11 @@ requestStuff peer tor = forever $ do
            else do 
              maybeReq <- atomically . nextRequest $ tor
              case maybeReq of
-               Nothing  -> print "Got all pieces"
+               Nothing -> return ()
                Just req -> do
-                  print req
-                  sendMessage req peer
-                  atomically $ writeTVar (reqPending peer) True
+                   print req
+                   sendMessage req peer
+                   atomically $ writeTVar (reqPending peer) True
 
 sendMessage :: Message -> Peer -> IO ()
 sendMessage msg peer = do
@@ -152,4 +157,14 @@ sendMessage msg peer = do
 toInt :: Lazy.ByteString -> Int
 toInt bs = fromIntegral (Bin.decode $ bs :: Word32)
 
-     
+-- |Execute an action repeatedly as long as the given boolean expression
+-- returns True.  The condition is evaluated before the loop body.
+-- Discards results.
+-- Taken from monad-loops
+whileM_ :: (Monad m) => m Bool -> m a -> m ()
+whileM_ p f = go
+    where go = do
+            x <- p
+            if x
+                then f >> go
+                else return ()

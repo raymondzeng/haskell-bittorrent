@@ -33,14 +33,16 @@ data Torrent = Torrent
     , hashes      :: [ByteString]      -- hashes for each piece
     , pieceBuffer :: TVar [[Block]]    
     , lastWritten :: TVar Int
+    , done        :: TVar Bool
     } 
       
 newTorrent :: MetaInfo -> ByteString -> STM Torrent
 newTorrent meta pid = do
-    h <- newTVar $ take count $ repeat False
-    n <- newTVar $ Just (0,0)
-    p <- newTVar $ take count $ repeat []
-    w <- newTVar $ 0
+    tHaves <- newTVar $ take count $ repeat False
+    tNext <- newTVar $ Just (0,0)
+    tBuff <- newTVar $ take count $ repeat []
+    tLast <- newTVar $ 0
+    tDone <- newTVar $ False
     return Torrent 
         { fileName    = fName
         , infoHash    = getInfoHash meta
@@ -49,11 +51,12 @@ newTorrent meta pid = do
         , pieceLength = pieceLen
         , blocksPer   = bp
         , numPieces   = count
-        , haves       = h
-        , nextReq     = n
+        , haves       = tHaves
+        , nextReq     = tNext
         , hashes      = map B8.pack $ chunksOf 20 pieces
-        , pieceBuffer = p
-        , lastWritten = w
+        , pieceBuffer = tBuff
+        , lastWritten = tLast
+        , done        = tDone
         }
   where Just (_, BenString pieces) = getPieces meta
         Just (_, BenInt pieceLen) = getPieceLen meta
@@ -72,7 +75,9 @@ nextToReq tor = do
       Just (idx, offset) -> do
           if (pieceLength tor) - offset <= blockSize tor
             then if idx >= numPieces tor - 2
-                   then makeNext Nothing
+                   then do
+                     writeTVar (done tor) True
+                     makeNext Nothing
                    else makeNext $ Just (idx + 1, 0)
             else makeNext $ Just (idx, offset + blockSize tor)
           return $ Just (idx, offset)
