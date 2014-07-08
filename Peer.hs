@@ -102,7 +102,7 @@ listenToPeer peer tor = forever $ do
                valid <- consumeBlock tor b
                case valid of
                  Nothing -> return ()
-                 Just b -> print b
+                 Just b -> print $ "Hash valid? " ++ show b
                print $ "Piece " ++ show i ++ " " ++ show o
         _             -> print "unknown message"
               
@@ -144,7 +144,7 @@ requestStuff peer tor = forever $ do
 sendMessage :: Message -> Peer -> IO ()
 sendMessage msg peer = do
     Lazy.hPut handle (Bin.encode msg)
-    print $ "sent " ++ show msg
+   -- print $ "sent " ++ show msg
   where handle = getHandle peer
 
 -- ...... Utilities
