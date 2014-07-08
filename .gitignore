@@ -12,3 +12,6 @@ cabal.config
 
 
 *~
+*.jpg
+*.iso
+*.torrent

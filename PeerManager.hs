@@ -15,9 +15,10 @@ import           Tracker                          (Address(..))
 import           System.IO                       
 
 createHandle :: Address -> IO Handle
-createHandle a = do
-  handle <- connectTo (host a) (port a) 
-  print $ "Connected to : " ++ show (host a) ++ show (port a)
+createHandle addr = do
+  print $ "Connecting to " ++ show addr ++ "..."
+  handle <- connectTo (host addr) (port addr) 
+  print $ "Connected to : " ++ show (host addr) ++ show (port addr)
   return handle
 
 initAndRun :: Torrent -> Handle -> IO ()
@@ -38,12 +39,12 @@ initAndRun tor handle = do
 
 startPeer tor addr = forkFinally start handleError
   where start = bracket (createHandle addr) 
-                        (\h -> print "Closing Connection" >> hClose h) 
+                        (\h -> print ("Closing Connection for : " ++ show addr) >> hClose h) 
                         (initAndRun tor) 
-        handleError (Left e) = print (show e)
+        handleError (Left e) = print $ "Thread failed for : " ++ show addr ++ " because " ++ (show e)
         handleError (Right ()) = print "Thread Done."
 
 startPeers :: [Address] -> Torrent -> IO ()
 startPeers peerList tor = do
-    mapM_ (startPeer tor) peerList 
+    mapM_ (startPeer tor) peerList
     forever $ threadDelay 99999999999

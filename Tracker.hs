@@ -26,7 +26,10 @@ import           Bencode
 data Address = Addr 
     { host :: HostName
     , port :: PortID
-    } deriving (Show)
+    }
+
+instance Show Address where
+    show (Addr h (PortNumber p)) = show h ++ ":" ++ show p
 
 ---- getters for metainfo
 getInfo :: MetaInfo -> Maybe (BenValue, BenValue)
