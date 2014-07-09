@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+-- This module provides methods for parsing Bencode into one of 
+-- the four data types (string, integer, list, or dictionary). 
+-- There is also a utility for getting the value from a BenDict with a key.
 
 module Bencode 
     ( MetaInfo
@@ -30,7 +32,7 @@ import           Test.HUnit                       ( (~?=)
 
 -- TODO : 
 -- put a stricter type on the keys of Dict so that they HAVE to be BenString?
--- Error testing, make sure parsing works on bad data
+-- Error handling, make sure parsing works on bad data
 
 data BenValue = BenString   String
               | BenInt      Int

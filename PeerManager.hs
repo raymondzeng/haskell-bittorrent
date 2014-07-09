@@ -1,3 +1,7 @@
+-- This module handles the creation of Peers and starting them, 
+-- i.e. connecting to them and starting the threads to listen and talk 
+-- to the peer.
+
 module PeerManager where
 
 import           Control.Applicative              ((<$>))
@@ -23,6 +27,8 @@ createHandle addr = do
   print $ "Connected to : " ++ show (host addr) ++ show (port addr)
   return handle
 
+-- First send the HandShake and wait for theirs. Then validate it. 
+-- If valid, launch two threads to listen and talk to the peer
 initAndRun :: Torrent -> Handle -> IO ()
 initAndRun tor handle = do
     hSetBinaryMode handle True
@@ -44,11 +50,13 @@ startPeer tor addr = forkFinally start handleError
                         (\h -> print ("Closing Connection for : " ++ show addr) >> hClose h) 
                         (initAndRun tor) 
         handleError (Left e) = print $ "Thread failed for : " ++ show addr ++ " because " ++ (show e)
-        handleError (Right ()) = print "Thread Done."
+        handleError (Right ()) = print $ "Thread Done." ++ show addr
 
+-- start each peer, then while the torrent is not done, delay this main thread
 startPeers :: [Address] -> Torrent -> IO ()
 startPeers peerList tor = do
     mapM_ (startPeer tor) peerList
-          -- TODO change this to while children running
+          -- TODO maybe better to change this to while children running?
     whileM_ (notComplete) $ threadDelay 100000
+    print "Torrent completely downloaded"
   where notComplete = not <$> readTVarIO (done tor)

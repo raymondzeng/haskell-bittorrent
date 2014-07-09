@@ -1,3 +1,7 @@
+-- This module handles interfacing with a Peer, including sending messages
+-- and handling messages. Each Peer has a few stateful fields, which are
+-- tracked and updated with TVars
+
 module Peer where
 
 import           Control.Applicative         ((<$>), (<*>))
@@ -30,14 +34,14 @@ import           Torrent
 import           Tracker                     (Address)
 
 data Peer = Peer 
-    { getHandle      :: Handle
-    , maybeId        :: Maybe String 
-    , amInterested   :: TVar Bool
+    { getHandle      :: Handle        -- the Handle connected to this peer
+    , maybeId        :: Maybe String  -- maybe the peerId of this peer
+    , amInterested   :: TVar Bool  
     , amChoking      :: TVar Bool
     , theyInterested :: TVar Bool
     , theyChoking    :: TVar Bool
-    , bitfield       :: TVar BitField
-    , reqPending     :: TVar Bool
+    , bitfield       :: TVar BitField -- the bitfield of haves for this peer
+    , reqPending     :: TVar Bool     -- if we have sent a request to this peer and waiting for a response
     } 
 
 newPeer :: Handle -> STM Peer
@@ -80,7 +84,7 @@ validateHandShake to@(HandShake _ _ tih _) from@(HandShake fport _ fih _)
     | otherwise = Right ()
 
 -- ......... The stuff that listens and changes state
--- ......... listenToPeer should be run concurr with requestStuff
+-- ......... listenToPeer should be run concurrently with talkToPeer
 listenToPeer :: Torrent -> Peer -> IO ()
 listenToPeer tor peer = forever $ do
     msg <- getMessage $ getHandle peer
@@ -109,7 +113,6 @@ listenToPeer tor peer = forever $ do
                print $ "Piece " ++ show i ++ " " ++ show o
         _             -> print "unknown message"
               
-
 getMessage :: Handle -> IO Message
 getMessage handle = do
     bytes <- Lazy.hGet handle 4
@@ -127,9 +130,9 @@ updatedBf n peer = do
 -- ...... The stuff that sends requests
 talkToPeer :: Torrent -> Peer -> IO ()
 talkToPeer tor peer = whileM_ (notComplete) (makeRequests tor peer)
-                      >> print "Torrent completely downloaded"
   where notComplete = not <$> readTVarIO (done tor)
 
+-- TODO : there must be a more monadic way to do this
 makeRequests :: Torrent -> Peer -> IO ()
 makeRequests tor peer = do    
     tc <- readTVarIO $ theyChoking peer
@@ -146,15 +149,13 @@ makeRequests tor peer = do
              case maybeReq of
                Nothing -> return ()
                Just req -> do
-                   print req
+                --   print req
                    sendMessage req peer
                    atomically $ writeTVar (reqPending peer) True
 
 sendMessage :: Message -> Peer -> IO ()
 sendMessage msg peer = do
-    Lazy.hPut handle (Bin.encode msg)
-   -- print $ "sent " ++ show msg
-  where handle = getHandle peer
+    Lazy.hPut (getHandle peer) (Bin.encode msg)
 
 -- ...... Utilities
 toInt :: Lazy.ByteString -> Int

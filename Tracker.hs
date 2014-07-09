@@ -1,3 +1,7 @@
+-- This module interfaces with the HTTP Tracker. It handles creating a 
+-- proper GET request, sending the request to the Tracker and parsing the 
+-- response from the Tracker. 
+
 module Tracker 
     ( Address(..)
     , getInfoHash
@@ -69,6 +73,10 @@ toDownload m = show 0 --get (BenString "length") m - downloaded
 event :: String
 event = "started"
 
+-- takes a hex-encoded bytestring and url-encodes it. 
+-- First splits the hex-string into chunks of two, and for each chunk
+-- checks if that hex value is one of the allowed values
+-- if it is, leave it as is, if it's not, prepend "%" to it. 
 urlEncode :: ByteString -> String
 urlEncode s = concat $ map helper hexs
   where hexs = bsChunksOf 2 $  Base16.encode s

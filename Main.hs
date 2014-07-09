@@ -63,10 +63,18 @@ main = do
                          peerList <- announceTracker meta   
                          tor <- atomically $ newTorrent meta peerIdHash
                          print $ peerList
-                         print $ numPieces tor
                          startPeers peerList tor
   where multiFile meta = case getFiles meta of
                            Nothing -> False
                            Just _ -> True
         getFiles meta = getFromDict (BenString "files") (val $ getInfo meta)
         val (Just (_,v)) = v
+ 
+
+
+
+-- TODO: code below is for displaying the filesize of the torrent. useful for displaying info in a UI
+
+ --       fileLength meta = val2 $ getFromDict (BenString "length") (val $ getInfo meta)
+  --       val2 (Just (_, BenInt v)) = v
+-- print $ show (realToFrac (fileLength meta) / 1000000 :: Float) ++ "MB"

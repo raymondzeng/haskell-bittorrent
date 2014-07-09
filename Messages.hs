@@ -1,3 +1,7 @@
+-- This module contains all the messages sent over the wire for 
+-- the peer protocol, including the HandShake. Implementation for
+-- the serialization of the messages are here, using the Binary typeclass.
+
 module Messages where
 
 import           Control.Applicative    (liftA2, liftA3, (<$>), (<*>))
@@ -61,7 +65,7 @@ instance Binary HandShake where
                       <*> (getByteString 20) 
                       <*> (getByteString 20)
             
---- Not sure what the fail would do while program running for real ..
+--- Not sure what the fail would do while program running ..
 instance Binary Message where
     put KeepAlive       = putWord32be 0
     put Choke           = putWord32be 1 >> putWord8 0
@@ -128,7 +132,7 @@ getString :: Int -> Get String
 getString n = B8.unpack <$> getByteString n
 
 -- ??? packWord8BE takes 8 booleans as arguments
--- is there a better way to do this
+-- is there a better way to do apply8
 putBitField :: [Bool] -> Put
 putBitField bf = putByteString . B.pack $ map (apply8 packWord8BE) tuples
   where tuples = chunksOf 8 bf

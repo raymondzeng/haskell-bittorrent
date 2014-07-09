@@ -1,3 +1,9 @@
+-- This module handles all the information related to a torrent.
+-- It also acts as a Piece Manager by keeping track of 
+-- which pieces need to be obtained and holding a buffer for
+-- the actual content of each piece. This is also responsible
+-- for interfacing with disk to write out the content.
+
 module Torrent 
     ( Torrent(..)
     , Block(..)
@@ -93,6 +99,8 @@ nextToReq tor = do
         makeNext n = writeTVar (nextReq tor) n
 
 -- TODO : currently just increments. should take into account haves
+-- if a Peer never responds to a request, we don't know about it
+-- and end up never getting that piece 
 nextRequest :: Torrent -> STM (Maybe Message)
 nextRequest tor = do
     maybeReq <- nextToReq tor
@@ -102,8 +110,7 @@ nextRequest tor = do
           let len = min (blockSize tor) (pieceLength tor - offset)
           return . Just $ Request idx offset len
 
--- TODO : drop connection if invalid hash. needs to boil up exception
-
+-- TODO : drop connection if invalid hash. 
 -- returns Nothing if this block doesn't complete a piece
 -- otherwise, hashes the piece formed by the blocks and returns
 -- whether that hash matches the hash in the .torrent metainfo
