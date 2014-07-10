@@ -10,7 +10,7 @@ import           Control.Concurrent.STM.TVar
 import           Control.Concurrent.Async         (race_)
 import           Control.Exception                
 import           Control.Monad                    (forM_, forever)
-import           Control.Monad.STM                (atomically)
+import           Control.Monad.STM                (atomically, check)
 import           Data.ByteString                  (ByteString)
 import           Network                          (connectTo, withSocketsDo)
 import           System.IO                       
@@ -56,7 +56,7 @@ startPeer tor addr = forkFinally start handleError
 startPeers :: [Address] -> Torrent -> IO ()
 startPeers peerList tor = do
     mapM_ (startPeer tor) peerList
-          -- TODO maybe better to change this to while children running?
-    whileM_ (notComplete) $ threadDelay 100000
+    atomically $ do
+      isDone <- readTVar $ done tor
+      check isDone
     print "Torrent completely downloaded"
-  where notComplete = not <$> readTVarIO (done tor)
