@@ -16,11 +16,11 @@ cabal-version:       >=1.8
 executable bittorrent
   main-is: Main.hs
   -- other-modules:       
-  build-depends:       base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*, binary ==0.5.1.*, cereal ==0.4.*, bitwise ==0.1.*, stm ==2.4.*, async ==2.0.*
+  build-depends:       base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*, binary ==0.5.1.*, cereal ==0.4.*, bitwise ==0.1.*, stm ==2.4.*, async ==2.0.*, mtl == 2.1.*
 
 Test-Suite tests
   type:			exitcode-stdio-1.0
   main-is:		Tests.hs
-  build-depends:       base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*, binary ==0.5.1.*, cereal ==0.4.*, bitwise ==0.1.*, stm ==2.4.*, async ==2.0.*
+  build-depends:        base ==4.6.*, attoparsec ==0.12.*, bytestring ==0.10.*, base16-bytestring ==0.1.*, HUnit ==1.2.*, cryptohash ==0.11.*, HTTP ==4000.*, network == 2.5.*, text ==1.1.1.*, split == 0.2.2.*, binary ==0.5.1.*, cereal ==0.4.*, bitwise ==0.1.*, stm ==2.4.*, async ==2.0.*
   default-language:	Haskell2010
   ghc-options:		-Wall

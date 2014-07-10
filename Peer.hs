@@ -33,6 +33,9 @@ import           Messages                    ( BitField
 import           Torrent
 import           Tracker                     (Address)
 
+-- the TVar fields could probalby be replaced with the State monad 
+-- since all these are thread-local. But using TVar is easier and less messy 
+-- than using the State monad
 data Peer = Peer 
     { getHandle      :: Handle        -- the Handle connected to this peer
     , maybeId        :: Maybe String  -- maybe the peerId of this peer
